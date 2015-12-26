@@ -263,7 +263,7 @@ $('#tempo').change(function() {
 	tempo = $(this).val();
 });
 
-$('#options-toggle').click(function(event) {
+$('.js-options-toggle').click(function(event) {
 	event.preventDefault();
 	$('#controls').toggle();
 });
@@ -271,8 +271,8 @@ $('#options-toggle').click(function(event) {
 $(document).ready(function () {
 	resizeCanvas();
     $('#drumCount').change(updateDrumNumber);
-    $('#dismiss-alert').click(function() {
-    	$('#alert').slideToggle(500);
-    });
+    // $('#dismiss-alert').click(function() {
+    // 	$('#alert').slideToggle(500);
+    // });
 }); 
 

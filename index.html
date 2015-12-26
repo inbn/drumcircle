@@ -1,85 +1,95 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 	<meta charset="utf-8">
+	<meta http-equiv="x-ua-compatible" content="ie=edge">
 	<title>Drum Circle &ndash; a circular drum sequencer</title>
-	<meta name="viewport" content="width=device-width, initial-scale = 1.0">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 	<link href="css/styles.css" rel="stylesheet" type="text/css">
 </head>
 <body>
-	<div class="buttons">
-		<ul>
-			<li>
-				<a href="/" class="home-link icon-home" title="Home">Home</a>
-			</li>
-			<li>
-				<a href="#" class="options-toggle icon-cog" id="options-toggle" title="Show/Hide Settings">Settings</a>
-			</li>
-		</ul>
-	</div>
-
-	<div id="container"></div>
-
-	<div class="controls" id="controls">
-
-		<div class="drumSettings" id="globalSettings">
-			<h2>Settings</h2>
-			<div class="settings-item">
-				<label for="tempo">Tempo (BPM)*</label>
-				<input type="number" name="tempo" id="tempo" value="120" min="40" max="240" step="0.1">
-			</div>
-			<div class="settings-item">
-				<label for="drumCount">Number of Drums</label>
-				<input type="number" name="drumCount" id="drumCount" value="5" min="1" max="8" step="1">
-			</div>
+	<header class="header">
+		<h1 class="header__title">Drum Circle</h1>
+		<div class="header__menu">
+			<ul class="header__menu-list">
+				<li class="header__menu-list-item">
+					<a href="#" class="header__menu-list-item-link options-toggle icon-cog js-options-toggle" title="Show/Hide Settings">Show/Hide Settings</a>
+				</li>
+				<li class="header__menu-list-item">
+					<a href="/" class="header__menu-list-item-link home-link icon-home" title="Home">iainbean.com</a>
+				</li>
+				
+				<li class="header__menu-list-item">
+					<a href="https://github.com/inbn/drumcircle" class="header__menu-list-item-link" title="GitHub">Github</a>
+				</li>
+			</ul>
 		</div>
+	</header>
 
-		<div class="individualDrumSettings" id="individualDrumSettings"></div>
+	<div class="wrap">
+		
+		<div id="container"></div>
 
-		<div id="template" style="display:none;">
-	    	<div class="drumSettings" id="drum{{ num }}Settings">
-	        	<h3>Drum {{ num }}</h3>
-	        	<div class="settings-item">
-	            	<label for="drum{{ num }}SectorCount">Sectors</label>
-	            	<input type="number" name="drum{{ num }}SectorCount" id="drum{{ num }}SectorCount" value="16" min="2" max="32" onchange="redrawDrumLayer(this, {{ arrayNum }})">
-	        	</div>
-	        	<div class="settings-item">
-	            	<label for="drum{{ num }}Sample">Sample</label>
-	            	<select name="drum{{ num }}Sample" id="drum{{ num }}Sample" onchange="changeDrumSample(this, {{ arrayNum }})">
-						<optgroup label="Kick Drums" class="opt-group-label">
-							<option value="samples/808 Kick.wav" selected="selected">808 Kick</option>
-						</optgroup>
-						<optgroup label="Snares">
-							<option value="samples/808 Snare.wav">808 Snare</option>
-						</optgroup>
-						<optgroup label="Hi-Hats">
-							<option value="samples/808 Closed Hihat.wav">808 Closed HiHat</option>
-							<option value="samples/808 Open Hihat.wav">808 Open HiHat</option>
-						</optgroup>
-						<optgroup label="Claps">
-							<option value="samples/808 Clap.wav">808 Clap</option>
-						</optgroup>
-						<optgroup label="Toms">
-							<option value="samples/808 Low Tom.wav">808 Low Tom</option>
-							<option value="samples/808 Mid Tom.wav">808 Mid Tom</option>
-							<option value="samples/808 High Tom.wav">808 High Tom</option>
-						</optgroup>
-						<optgroup label="Percussion">
-							<option value="samples/808 Cowbell.wav">808 Cowbell</option>
-						</optgroup>
-					</select>
+		<div class="controls" id="controls">
+			
+			<div class="drumSettings" id="globalSettings">
+				<h2>Settings</h2>
+				<div class="settings-item">
+					<label for="tempo">Tempo (BPM)*</label>
+					<input type="number" name="tempo" id="tempo" value="120" min="40" max="240" step="0.1">
+				</div>
+				<div class="settings-item">
+					<label for="drumCount">Number of Drums</label>
+					<input type="number" name="drumCount" id="drumCount" value="5" min="1" max="8" step="1">
+				</div>
+			</div>
+
+			<div class="individualDrumSettings" id="individualDrumSettings"></div>
+
+			<div id="template" style="display:none;">
+		    	<div class="drumSettings" id="drum{{ num }}Settings">
+		        	<h3>Drum {{ num }}</h3>
+		        	<div class="settings-item">
+		            	<label for="drum{{ num }}SectorCount">Sectors</label>
+		            	<input type="number" name="drum{{ num }}SectorCount" id="drum{{ num }}SectorCount" value="16" min="2" max="32" onchange="redrawDrumLayer(this, {{ arrayNum }})">
+		        	</div>
+		        	<div class="settings-item">
+		            	<label for="drum{{ num }}Sample">Sample</label>
+		            	<select name="drum{{ num }}Sample" id="drum{{ num }}Sample" onchange="changeDrumSample(this, {{ arrayNum }})">
+							<optgroup label="Kick Drums" class="opt-group-label">
+								<option value="samples/808 Kick.wav" selected="selected">808 Kick</option>
+							</optgroup>
+							<optgroup label="Snares">
+								<option value="samples/808 Snare.wav">808 Snare</option>
+							</optgroup>
+							<optgroup label="Hi-Hats">
+								<option value="samples/808 Closed Hihat.wav">808 Closed HiHat</option>
+								<option value="samples/808 Open Hihat.wav">808 Open HiHat</option>
+							</optgroup>
+							<optgroup label="Claps">
+								<option value="samples/808 Clap.wav">808 Clap</option>
+							</optgroup>
+							<optgroup label="Toms">
+								<option value="samples/808 Low Tom.wav">808 Low Tom</option>
+								<option value="samples/808 Mid Tom.wav">808 Mid Tom</option>
+								<option value="samples/808 High Tom.wav">808 High Tom</option>
+							</optgroup>
+							<optgroup label="Percussion">
+								<option value="samples/808 Cowbell.wav">808 Cowbell</option>
+							</optgroup>
+						</select>
+					</div>
 				</div>
 			</div>
 		</div>
-
 	</div>
 
-	<div class="alert" id="alert">
+	<!-- <div class="alert" id="alert">
 		<p>Drum Circle is still a work in progress, so still has a few issues that need sorting out.</p>
 		<p>For the best experience, make sure you're using the latest version of Google Chrome, on either a Tablet or Laptop</p>
 		<button id="dismiss-alert">OK</button>
-	</div>
+	</div> -->
 
 	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 	<script src="js/kinetic.min.js"></script>
