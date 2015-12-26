@@ -2,9 +2,9 @@ var context = new AudioContext();
 
 var tempo = 120;
 var barTime = 240 / tempo;
-var angularSpeed = 360/barTime;
+var angularSpeed = 360 / barTime;
 var drumBuffers = [];
-var playing = false;
+var isPlaying = false;
 
 var nextBarStartTime;
 var timerID = null;
@@ -55,23 +55,26 @@ function playDrum(time, bufferNumber) {
 
 function togglePlay() {
 	var now = context.currentTime;
-	if (playing === false) {
-		playing = true;
+
+	if (isPlaying === false) {
+		isPlaying = true;
 		nextBarStartTime = now;
 		scheduler();
-		anim.start();
-		imageObj.src = 'img/stop_64.png';
-	}	
+		createjs.Ticker.setPaused(false);
+		drawStopSymbol();
+	}
 	else {
-		playing = false;
-		window.clearTimeout( timerID );	
+		isPlaying = false;
+		window.clearTimeout( timerID );
 		//stop animation at end of bar (most probably a bad way of doing this)
 		setTimeout(function(){
-			anim.stop();
-			clockHand.rotation(247.5);
-			clockHandLayer.draw();
-			imageObj.src = 'img/play_64.png';
-		}, (nextBarStartTime - now)*1000);		
+			createjs.Ticker.setPaused(true);
+			// anim.stop();
+			clockHand.rotation = 0;
+			stage.update();
+			// clockHandLayer.draw();
+			drawPlaySymbol();
+		}, (nextBarStartTime - now) * 1000);
 	}
 }
 
@@ -86,7 +89,7 @@ function scheduler() {
 function scheduleNextBar() {
 	//calculate bar duration and rotational speed
 	barTime = 240 / tempo;
-	angularSpeed = 360/barTime;
+	angularSpeed = 360 / barTime;
 
 	//for each drum
 	for(var i = 0; i < numberOfDrums; i += 1) {

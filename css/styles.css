@@ -34,12 +34,11 @@ h3 {
     display: table;
     width: 100%;
     background: #1a1334;
-
 }
 
 .header__title {
     display: table-cell;
-    font-size: 2em;
+    font-size: 2rem;
     line-height: 1.5;
     padding-left: 1rem;
     margin: 0;
@@ -58,14 +57,13 @@ h3 {
 .header__menu-list-item {
     display: inline-block;
     padding-right: 1rem;
-    padding-bottom: 1rem;
+    line-height: 3;
 }
 
 .header__menu-list-item-link {
     color: #fff;
     transition: .2s;
     text-decoration: none;
-    margin-bottom: 0.2em
 }
 
 .header__menu-list-item-link:hover {
@@ -75,6 +73,11 @@ h3 {
 
 .wrap {
     position: relative;
+}
+
+.canvas {
+    width: 100%;
+    height: calc(100vh - 3rem - 9px);
 }
 
 .controls {

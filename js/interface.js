@@ -6,16 +6,14 @@ var centerX;
 var centerY;
 
 var layers = [];
-var clockHandLayer; 
 var clockHand;
-var imageObj;
+var playSymbol;
+var stopSymbol;
 
 var numberOfDrums = 6;
 var arcWidth = 30;
 
-var anim;
-
-for(var drumArcs = []; drumArcs.length < 10; drumArcs.push([]));
+for (var drumArcs = []; drumArcs.length < 10; drumArcs.push([]));
 
 var drumPattern = [
 		[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -39,145 +37,168 @@ var drumColours = [
 		['#e5f3cf', '#aad962'],
 		['#b3edd9', '#03c383'],
 		['#b2d5ca', '#017351'],
-		['#b2cbcd', '#01545a']	
+		['#b2cbcd', '#01545a']
 	];
 
 /* colours used
-#1a1334    #26294a    #01545a    
-#017351    #03c383    #aad962    
-#fbbf45    #ef6a32    #ed0345    
-#a12a5e    #710162    #110141    
+#1a1334    #26294a    #01545a
+#017351    #03c383    #aad962
+#fbbf45    #ef6a32    #ed0345
+#a12a5e    #710162    #110141
 */
 
 //event handler for window resize
 window.addEventListener('resize', resizeCanvas, false);
- 
+
+var $container = $('.js-canvas-container');
+var $canvas = $('.js-canvas');
+
 //resize calculates dimensions then calls draw canvas
 function resizeCanvas() {
-    var canvasWidth = window.innerWidth;
-    var canvasHeight = window.innerHeight - 10;
+    var canvasWidth = $canvas.width();
+    var canvasHeight = $canvas.height() - 10;
+    // Set css calculated values as attributes on the element
+    $canvas.attr({ width: canvasWidth, height: canvasHeight });
     centerX = canvasWidth / 2;
 	centerY = canvasHeight / 2;
-    drawCanvas(canvasWidth,canvasHeight);
+    drawCanvas(canvasWidth, canvasHeight);
     updateDrumNumber();
 }
- 
-function drawCanvas(canvasWidth,canvasHeight) {
- 
-	stage = new Kinetic.Stage({
-        container: 'container',
-        width: canvasWidth,
-        height: canvasHeight
-    });
 
-	//add Start/Stop circle
-    var circleLayer = new Kinetic.Layer();
+function drawCanvas(canvasWidth, canvasHeight) {
 
-    var circle = new Kinetic.Circle({
-    	x: centerX,
-    	y: centerY,
-	  	radius: 40,
-	  	fill: 'grey',
-	  	stroke: 'white',
-	  	strokeWidth: 2
-	});
+	stage = new createjs.Stage('canvas');
 
-	circleLayer.on('click touchstart', function() {
+	// stage.enableMouseOver(60);
+
+	// add Start/Stop circle
+	var playButton = new createjs.Shape();
+	playButton.graphics.beginFill('grey').drawCircle(centerX, centerY, 40);
+	stage.addChild(playButton);
+
+	playButton.addEventListener('click', function(event) {
 		togglePlay();
 	});
 
-	circleLayer.on('mouseover', function () {
-		document.body.style.cursor = 'pointer';
-		circle.fill('black');
-		circleLayer.draw();
-	});
+	// playButton.addEventListener('mouseover', function(event) {
+	// 	document.body.style.cursor = 'pointer';
 
-	circleLayer.on('mouseout', function () {
-		document.body.style.cursor = 'default';
-		circle.fill('grey');
-		circleLayer.draw();
-	});
+	// 	var target = event.target;
+ //    	target.graphics.clear().beginFill('black').drawCircle(centerX, centerY, 40);
+ //    	stage.update();
+	// });
 
-	circleLayer.add(circle);
+	// playButton.addEventListener('mouseout', function(event) {
+	// 	document.body.style.cursor = 'default';
 
-	//playPause = new Kinetic.Layer();
+	// 	var target = event.target;
+ //    	target.graphics.clear().beginFill('grey').drawCircle(centerX, centerY, 40);
+ //    	stage.update();
+	// });
 
-	imageObj = new Image();
-	imageObj.onload = function() {
- 		var image = new Kinetic.Image({
-		    x: centerX - 16,
-		    y: centerY - 16,
-		    image: imageObj,
-		    width: 32,
-		    height: 32
-		});
-	 	
-	 	circleLayer.add(image);
-	 	circleLayer.draw();
-	};
-	imageObj.src = 'img/play_64.png';
+	// add rotating clock hand
+	clockHand = new createjs.Shape();
 
-	stage.add(circleLayer);
+	clockHand.x = centerX;
+	clockHand.y = centerY;
 
-	//add rotating clock hand
-	clockHandLayer = new Kinetic.Layer();
+	clockHand.graphics.beginLinearGradientStroke(['#26294a','#FFF'], [0, 1], -50, 0, 50, -10)
+            .setStrokeStyle((arcWidth + 2) * numberOfDrums)
+            .arc(0, 0, (arcWidth + 2) * numberOfDrums, Math.PI * 1.375, Math.PI * 1.5);
+	// clockHandLayer = new Kinetic.Layer();
+	stage.addChild(clockHand);
 
-	clockHand = new Kinetic.Arc({
-		x: stage.width()/2,
-	    y: stage.height()/2,
-	    innerRadius: 42,
-	    outerRadius: 65 + (arcWidth * numberOfDrums),
-	    fillLinearGradientStartPoint: {x:0, y:0},
-        fillLinearGradientEndPoint: {x:0,y:80},
-        fillLinearGradientColorStops: [0, '#26294a', 1, 'white'],
-	    angle: 22.5,
-	    rotationDeg: 247.5
-	});
+	drawPlaySymbol();
 
-	clockHandLayer.add(clockHand);
-	stage.add(clockHandLayer);
-
-	anim = new Kinetic.Animation(function(frame) {
-        var angleDiff = frame.timeDiff * angularSpeed / 1000;
-        clockHand.rotate(angleDiff);
-    }, clockHandLayer);
+	createjs.Ticker.addEventListener('tick', tick);
+	createjs.Ticker.timingMode = createjs.Ticker.RAF_SYNCHED;
+	createjs.Ticker.setPaused(true);
 
 	//create all of the drum layers
-	for (var i = 0; i < 8; i += 1) {
+	for (var i = 0; i < numberOfDrums; i += 1) {
 		drawDrumLayer(i);
 	}
-    
+
+	stage.update();
 }
+
+function drawPlaySymbol() {
+	if (stopSymbol) {
+		stopSymbol.graphics.clear();
+	}
+
+	playSymbol = new createjs.Shape();
+	playSymbol.x = centerX;
+	playSymbol.y = centerY;
+	playSymbol.graphics.beginStroke('white');
+	playSymbol.graphics.moveTo(-15, 20).lineTo(20, 0).lineTo(-15, -20).lineTo(-15, 20);
+
+	stage.addChild(playSymbol);
+	stage.update();
+}
+
+function drawStopSymbol() {
+	if (playSymbol) {
+		playSymbol.graphics.clear();
+	}
+
+	stopSymbol = new createjs.Shape();
+	stopSymbol.x = centerX;
+	stopSymbol.y = centerY;
+	stopSymbol.graphics.beginStroke('white');
+	stopSymbol.graphics.drawRect(-15, -15, 30, 30);
+
+	stage.addChild(stopSymbol);
+	stage.update();
+}
+
+function tick(event) {
+	if (createjs.Ticker.getPaused() === false) {
+		var angleDiff = event.delta * angularSpeed / 1000;
+		clockHand.rotation = (clockHand.rotation += angleDiff) % 360;
+	    stage.update();
+	}
+}
+
 
 function drawDrumLayer(drumNumber) {
 	//destroy old layer
-	if(layers[drumNumber]) {
-		layers[drumNumber].destroy();
-	}
+	destroyDrumLayer(drumNumber);
 
-	layers[drumNumber] = new Kinetic.Layer();
+    var beatAngle = (2 * Math.PI) / barDivisions[drumNumber];
 
-    //var numBeats = 16;
-    var beatAngle = 360 / barDivisions[drumNumber];
+    var startAngle = (2 * Math.PI) * 0.75;
+    var endAngle = startAngle + beatAngle;
 
     //create drum sectors
     for (var i = 0; i < barDivisions[drumNumber]; i += 1) {
-    	drumArcs[drumNumber][i] = new Kinetic.Arc({
-	    	x: stage.width()/2,
-	    	y: stage.height()/2,
-	    	innerRadius: 65 + (arcWidth * drumNumber),
-	    	outerRadius: (65 + arcWidth) + (arcWidth * drumNumber),
-	    	fill: drumColours[drumNumber][0],
-	    	stroke: '#26294a',
-	    	strokeWidth: 2,
-	    	angle: beatAngle,
-	    	opacity: 0.8,
-	    	rotationDeg: (270 + (beatAngle * i))%360,
-    	});
+    	// check whether this beat contains a note
+    	fillColor = drumPattern[drumNumber][i] ? drumColours[drumNumber][1] : drumColours[drumNumber][0];
 
-    	if (drumPattern[drumNumber][i] === 1) {
-    		drumArcs[drumNumber][i].fill(drumColours[drumNumber][1]);
-    	}
+    	drumArcs[drumNumber][i] = new createjs.Shape();
+    	drumArcs[drumNumber][i].x = centerX;
+    	drumArcs[drumNumber][i].y = centerY;
+
+    	drumArcs[drumNumber][i].graphics.beginStroke(fillColor)
+            .setStrokeStyle(arcWidth)
+            .arc(0, 0, 65 + ((arcWidth + 2) * drumNumber), startAngle, endAngle);
+
+    	// drumArcs[drumNumber][i] = new Kinetic.Arc({
+	    // 	x: stage.width()/2,
+	    // 	y: stage.height()/2,
+	    // 	innerRadius: 65 + (arcWidth * drumNumber),
+	    // 	outerRadius: (65 + arcWidth) + (arcWidth * drumNumber),
+	    // 	fill: drumColours[drumNumber][0],
+	    // 	stroke: '#26294a',
+	    // 	strokeWidth: 2,
+	    // 	angle: beatAngle,
+	    // 	opacity: 0.8,
+	    // 	rotationDeg: (270 + (beatAngle * i))%360,
+    	// });
+
+    	// if (drumPattern[drumNumber][i] === 1) {
+    	// 	drumArcs[drumNumber][i].fill(drumColours[drumNumber][1]);
+    	// }
 
     	/*
     	drumArcs[drumNumber][i].on('mouseover', function () {
@@ -190,42 +211,60 @@ function drawDrumLayer(drumNumber) {
     		layers[drumNumber].draw();
     	});
 		*/
-	
-		//check for click events
-        drumArcs[drumNumber][i].on('click touchstart', function() {
-        	//find drum selected and array position
-        	var drumSelected;
-        	for (var j = 0; j < drumArcs.length; j += 1) {
-        		if (drumArcs[j].indexOf(this) !== -1) {
-        			drumSelected = j;
-        			break;
-        		}
-        	}
-      		var arrayPosition = drumArcs[drumSelected].indexOf(this);
 
-      		//switch value of item in drumPattern array
-        	if (drumPattern[drumSelected][arrayPosition] === 0) {
-        		this.fill(drumColours[drumSelected][1]);
-        		drumPattern[drumSelected][arrayPosition] = 1;
-        	}
-        	else if (drumPattern[drumSelected][arrayPosition] === 1) {
-        		this.fill(drumColours[drumSelected][0]);
-        		drumPattern[drumSelected][arrayPosition] = 0;
-        	}
-        	console.log(drumPattern[drumSelected][arrayPosition]);
+		drumArcs[drumNumber][i].addEventListener('click', function(event) {
 
-            layers[drumNumber].draw();
-        });
+			// find drum selected and array position
+	    	var drumSelected;
+	    	var target = event.target;
 
-    	layers[drumNumber].add(drumArcs[drumNumber][i]);	
+	    	for (var j = 0; j < drumArcs.length; j += 1) {
+	    		if (drumArcs[j].indexOf(target) !== -1) {
+	    			drumSelected = j;
+	    			break;
+	    		}
+	    	}
+
+	  		var arrayPosition = drumArcs[drumSelected].indexOf(target);
+
+	  		// get start and end angles of arc
+	  		var targetStartAngle = target.graphics.command.startAngle;
+	  		var targetEndAngle = target.graphics.command.endAngle;
+
+	  		console.log(targetEndAngle);
+
+	  		if (drumPattern[drumSelected][arrayPosition] === 0) {
+	  			drumPattern[drumSelected][arrayPosition] = 1;
+	  			target.graphics.clear().beginStroke(drumColours[drumSelected][1])
+            	.setStrokeStyle(arcWidth)
+            	 .arc(0, 0, 65 + ((arcWidth + 2) * drumNumber), targetStartAngle, targetEndAngle);
+	  		} else if (drumPattern[drumSelected][arrayPosition] === 1) {
+	  			drumPattern[drumSelected][arrayPosition] = 0;
+	  			target.graphics.clear().beginStroke(drumColours[drumSelected][0])
+            	.setStrokeStyle(arcWidth)
+            	 .arc(0, 0, 65 + ((arcWidth + 2) * drumNumber), targetStartAngle, targetEndAngle);
+	  		}
+
+	  		stage.update();
+		});
+
+		startAngle = (startAngle + beatAngle) % (2 * Math.PI);
+        endAngle = (endAngle + beatAngle) % (2 * Math.PI);
+
+    	stage.addChild(drumArcs[drumNumber][i]);
     }
 
-    stage.add(layers[drumNumber]);
+    stage.update();
 }
 
-function redrawDrumLayer(element, layer) {
-	barDivisions[layer] = element.value;
-	drawDrumLayer(layer);
+function destroyDrumLayer(layer) {
+	for (var i = 0; i < barDivisions[layer]; i += 1) {
+		if (drumArcs[layer][i]) {
+			drumArcs[layer][i].graphics.clear();
+		}
+	}
+
+	stage.update();
 }
 
 function updateDrumNumber() {
@@ -238,27 +277,30 @@ function updateDrumNumber() {
 
     for (var i = 1; i <= numberOfDrums; i += 1) {
     	//add options for this drum to page
-        target.append(Mustache.render(template, {num: i, arrayNum: i-1})); 
+        target.append(Mustache.render(template, {
+        	num: i,
+        	arrayNum: i - 1
+        }));
         //change value of select element to match that in samples array
-        var targetID = "#drum" + i + "Sample";
+        var targetID = '#drum' + i + 'Sample';
         $(targetID).val(samples[i-1]);
-    }   
+    }
+
     for (var j = 0; j < 8; j += 1) {
     	if (j < numberOfDrums) {
-    		layers[j].show();
+    		drawDrumLayer(j);
     	}
     	else {
-			layers[j].hide();
+			destroyDrumLayer(j);
     	}
     }
 
     //update clockHand radius
-	clockHand.outerRadius(65 + (arcWidth * numberOfDrums));
-	clockHandLayer.draw();
+	// clockHand.outerRadius(65 + (arcWidth * numberOfDrums));
+	// clockHandLayer.draw();
 }
 
 //event listeners
-
 $('#tempo').change(function() {
 	tempo = $(this).val();
 });
@@ -271,8 +313,5 @@ $('.js-options-toggle').click(function(event) {
 $(document).ready(function () {
 	resizeCanvas();
     $('#drumCount').change(updateDrumNumber);
-    // $('#dismiss-alert').click(function() {
-    // 	$('#alert').slideToggle(500);
-    // });
-}); 
+});
 
