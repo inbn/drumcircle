@@ -279,7 +279,8 @@ function updateDrumNumber() {
     	//add options for this drum to page
         target.append(Mustache.render(template, {
         	num: i,
-        	arrayNum: i - 1
+        	arrayNum: i - 1,
+        	sectorCount: barDivisions[i - 1]
         }));
         //change value of select element to match that in samples array
         var targetID = '#drum' + i + 'Sample';
@@ -294,6 +295,13 @@ function updateDrumNumber() {
 			destroyDrumLayer(j);
     	}
     }
+
+    // Create event listeners for each sector count input
+    $('.js-drum-sector-count').change(function() {
+    	var index = $('.js-drum-sector-count').index(this);
+		barDivisions[index] = parseInt($(this).val());
+		drawDrumLayer(index);
+	});
 
     //update clockHand radius
 	// clockHand.outerRadius(65 + (arcWidth * numberOfDrums));
