@@ -28,9 +28,9 @@
 
 	<div class="wrap">
 
-		<div id="container"></div>
+		<div id="container" class="canvas-container js-canvas-container"></div>
 
-		<div class="controls" id="controls">
+		<div id="controls" class="controls">
 
 			<div class="drumSettings" id="globalSettings">
 				<h2>Settings</h2>
@@ -51,7 +51,7 @@
 		        	<h3>Drum {{ num }}</h3>
 		        	<div class="settings-item">
 		            	<label for="drum{{ num }}SectorCount">Sectors</label>
-		            	<input type="number" name="drum{{ num }}SectorCount" id="drum{{ num }}SectorCount" value="16" min="2" max="32" onchange="redrawDrumLayer(this, {{ arrayNum }})">
+		            	<input type="number" name="drum{{ num }}SectorCount" id="drum{{ num }}SectorCount" class="js-drum-sector-count" value="{{ sectorCount }}" min="2" max="32">
 		        	</div>
 		        	<div class="settings-item">
 		            	<label for="drum{{ num }}Sample">Sample</label>

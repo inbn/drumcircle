@@ -15,7 +15,7 @@ var arcWidth = 30;
 
 var anim;
 
-for(var drumArcs = []; drumArcs.length < 10; drumArcs.push([]));
+for (var drumArcs = []; drumArcs.length < 10; drumArcs.push([]));
 
 var drumPattern = [
 		[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -49,13 +49,15 @@ var drumColours = [
 #a12a5e    #710162    #110141
 */
 
+var $container = $('.js-canvas-container');
+
 //event handler for window resize
 window.addEventListener('resize', resizeCanvas, false);
 
 //resize calculates dimensions then calls draw canvas
 function resizeCanvas() {
-    var canvasWidth = window.innerWidth;
-    var canvasHeight = window.innerHeight - 10;
+	var canvasWidth = $container.width();
+    var canvasHeight = $container.height() - 10;
     centerX = canvasWidth / 2;
 	centerY = canvasHeight / 2;
     drawCanvas(canvasWidth,canvasHeight);
@@ -123,12 +125,12 @@ function drawCanvas(canvasWidth,canvasHeight) {
 	clockHandLayer = new Konva.Layer();
 
 	clockHand = new Konva.Arc({
-		x: stage.width()/2,
-	    y: stage.height()/2,
+		x: stage.width() / 2,
+	    y: stage.height() / 2,
 	    innerRadius: 42,
 	    outerRadius: 65 + (arcWidth * numberOfDrums),
-	    fillLinearGradientStartPoint: { x:0, y:0 },
-        fillLinearGradientEndPoint: { x:0, y:80 },
+	    fillLinearGradientStartPoint: { x: 0, y: 0 },
+        fillLinearGradientEndPoint: { x: 0, y: 80 },
         fillLinearGradientColorStops: [0, '#26294a', 1, 'white'],
 	    angle: 22.5,
 	    rotation: 247.5
@@ -217,16 +219,20 @@ function redrawDrumLayer(element, layer) {
 }
 
 function updateDrumNumber() {
-	var template = $('#template').html();
-	var target = $('#individualDrumSettings');
+	var $template = $('#template').html();
+	var $target = $('#individualDrumSettings');
 
 	numberOfDrums = $('#drumCount').val();
-	Mustache.parse(template);
-	target.empty();
+	Mustache.parse($template);
+	$target.empty();
 
     for (var i = 1; i <= numberOfDrums; i += 1) {
     	//add options for this drum to page
-        target.append(Mustache.render(template, {num: i, arrayNum: i - 1}));
+        $target.append(Mustache.render($template, {
+        	num: i,
+        	arrayNum: i - 1,
+        	sectorCount: barDivisions[i - 1]
+        }));
         //change value of select element to match that in samples array
         var targetID = "#drum" + i + "Sample";
         $(targetID).val(samples[i-1]);
@@ -240,6 +246,13 @@ function updateDrumNumber() {
 			layers[j].hide();
     	}
     }
+
+    // Create event listeners for each sector count input
+    $('.js-drum-sector-count').change(function() {
+    	var index = $('.js-drum-sector-count').index(this);
+		barDivisions[index] = parseInt($(this).val());
+		drawDrumLayer(index);
+	});
 
     //update clockHand radius
 	clockHand.outerRadius(65 + (arcWidth * numberOfDrums));

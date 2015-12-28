@@ -77,6 +77,10 @@ h3 {
     position: relative;
 }
 
+.canvas-container {
+    height: calc(100vh - 3rem - 5px);
+}
+
 .controls {
     background: #1a1334;
     position: absolute;
