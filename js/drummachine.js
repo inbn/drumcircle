@@ -62,8 +62,7 @@ function togglePlay() {
 		scheduler();
 		createjs.Ticker.setPaused(false);
 		drawStopSymbol();
-	}
-	else {
+	} else {
 		isPlaying = false;
 		window.clearTimeout( timerID );
 		//stop animation at end of bar (most probably a bad way of doing this)
