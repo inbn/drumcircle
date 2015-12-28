@@ -94,7 +94,7 @@ h3 {
 }
 
 .drumSettings {
-    padding: .5em;
+    padding: 0.5rem;
     -moz-box-shadow: 0 0 8px rgba(50, 50, 50, 0.8);
     -webkit-box-shadow: 0 0 8px rgba(50, 50, 50, 0.8);
     box-shadow: 0 0 8px rgba(50, 50, 50, 0.8)

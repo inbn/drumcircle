@@ -60,11 +60,11 @@ function resizeCanvas() {
     var canvasHeight = $container.height() - 10;
     centerX = canvasWidth / 2;
 	centerY = canvasHeight / 2;
-    drawCanvas(canvasWidth,canvasHeight);
+    drawCanvas(canvasWidth, canvasHeight);
     updateDrumNumber();
 }
 
-function drawCanvas(canvasWidth,canvasHeight) {
+function drawCanvas(canvasWidth, canvasHeight) {
 
 	stage = new Konva.Stage({
         container: 'container',
@@ -79,26 +79,14 @@ function drawCanvas(canvasWidth,canvasHeight) {
     	x: centerX,
     	y: centerY,
 	  	radius: 40,
-	  	fill: 'grey',
+	  	fill: '#110141',
 	  	stroke: 'white',
-	  	strokeWidth: 2
+	  	strokeWidth: 1
 	});
 
 	circleLayer.on('click touchstart', function() {
 		togglePlay();
 	});
-
-	// circleLayer.on('mouseover', function () {
-	// 	document.body.style.cursor = 'pointer';
-	// 	circle.fill('black');
-	// 	circleLayer.draw();
-	// });
-
-	// circleLayer.on('mouseout', function () {
-	// 	document.body.style.cursor = 'default';
-	// 	circle.fill('grey');
-	// 	circleLayer.draw();
-	// });
 
 	circleLayer.add(circle);
 
@@ -121,7 +109,23 @@ function drawCanvas(canvasWidth,canvasHeight) {
 
 	stage.add(circleLayer);
 
-	//add rotating clock hand
+	drawClockHand();
+
+	anim = new Konva.Animation(function(frame) {
+        var angleDiff = frame.timeDiff * angularSpeed / 1000;
+        clockHand.rotate(angleDiff);
+    }, clockHandLayer);
+
+	// create all of the drum layers
+	for (var i = 0; i < 8; i += 1) {
+		drawDrumLayer(i);
+	}
+
+}
+
+// add rotating clock hand
+function drawClockHand() {
+
 	clockHandLayer = new Konva.Layer();
 
 	clockHand = new Konva.Arc({
@@ -138,32 +142,23 @@ function drawCanvas(canvasWidth,canvasHeight) {
 
 	clockHandLayer.add(clockHand);
 	stage.add(clockHandLayer);
-
-	anim = new Konva.Animation(function(frame) {
-        var angleDiff = frame.timeDiff * angularSpeed / 1000;
-        clockHand.rotate(angleDiff);
-    }, clockHandLayer);
-
-	//create all of the drum layers
-	for (var i = 0; i < 8; i += 1) {
-		drawDrumLayer(i);
-	}
-
 }
 
 function drawDrumLayer(drumNumber) {
-	//destroy old layer
+
+	// destroy old layer
 	if(layers[drumNumber]) {
 		layers[drumNumber].destroy();
 	}
 
+	// create new layer
 	layers[drumNumber] = new Konva.Layer();
-
-    //var numBeats = 16;
+	// calculate angle in degrees for each sector
     var beatAngle = 360 / barDivisions[drumNumber];
 
-    //create drum sectors
+    // create drum sectors
     for (var i = 0; i < barDivisions[drumNumber]; i += 1) {
+
     	drumArcs[drumNumber][i] = new Konva.Arc({
 	    	x: stage.width()/2,
 	    	y: stage.height()/2,
@@ -181,28 +176,28 @@ function drawDrumLayer(drumNumber) {
     		drumArcs[drumNumber][i].fill(drumColours[drumNumber][1]);
     	}
 
-		//check for click events
+		// create event listener for click and touchstart events
         drumArcs[drumNumber][i].on('click touchstart', function() {
         	//find drum selected and array position
         	var drumSelected;
+
         	for (var j = 0; j < drumArcs.length; j += 1) {
         		if (drumArcs[j].indexOf(this) !== -1) {
         			drumSelected = j;
         			break;
         		}
         	}
+
       		var arrayPosition = drumArcs[drumSelected].indexOf(this);
 
       		//switch value of item in drumPattern array
         	if (drumPattern[drumSelected][arrayPosition] === 0) {
         		this.fill(drumColours[drumSelected][1]);
         		drumPattern[drumSelected][arrayPosition] = 1;
-        	}
-        	else if (drumPattern[drumSelected][arrayPosition] === 1) {
+        	} else if (drumPattern[drumSelected][arrayPosition] === 1) {
         		this.fill(drumColours[drumSelected][0]);
         		drumPattern[drumSelected][arrayPosition] = 0;
         	}
-        	console.log(drumPattern[drumSelected][arrayPosition]);
 
             layers[drumNumber].draw();
         });
@@ -213,27 +208,22 @@ function drawDrumLayer(drumNumber) {
     stage.add(layers[drumNumber]);
 }
 
-function redrawDrumLayer(element, layer) {
-	barDivisions[layer] = element.value;
-	drawDrumLayer(layer);
-}
-
 function updateDrumNumber() {
-	var $template = $('#template').html();
+	var template = $('#template').html();
 	var $target = $('#individualDrumSettings');
 
 	numberOfDrums = $('#drumCount').val();
-	Mustache.parse($template);
+	Mustache.parse(template);
 	$target.empty();
 
     for (var i = 1; i <= numberOfDrums; i += 1) {
-    	//add options for this drum to page
-        $target.append(Mustache.render($template, {
+    	// Add options for this drum to page
+        $target.append(Mustache.render(template, {
         	num: i,
         	arrayNum: i - 1,
         	sectorCount: barDivisions[i - 1]
         }));
-        //change value of select element to match that in samples array
+        // Change value of select element to match that in samples array
         var targetID = "#drum" + i + "Sample";
         $(targetID).val(samples[i-1]);
     }
@@ -254,13 +244,12 @@ function updateDrumNumber() {
 		drawDrumLayer(index);
 	});
 
-    //update clockHand radius
+    // Update clockHand radius
 	clockHand.outerRadius(65 + (arcWidth * numberOfDrums));
 	clockHandLayer.draw();
 }
 
-//event listeners
-
+// Create event listeners
 $('#tempo').change(function() {
 	tempo = $(this).val();
 });
@@ -273,8 +262,4 @@ $('.js-options-toggle').click(function(event) {
 $(document).ready(function () {
 	resizeCanvas();
     $('#drumCount').change(updateDrumNumber);
-    // $('#dismiss-alert').click(function() {
-    // 	$('#alert').slideToggle(500);
-    // });
 });
-

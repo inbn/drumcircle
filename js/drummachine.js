@@ -10,11 +10,14 @@ var nextBarStartTime;
 var timerID = null;
 
 var samples = [
-			"samples/808 Kick.wav",
-			"samples/808 Snare.wav",
-			"samples/808 Closed Hihat.wav",
-			"samples/808 Clap.wav",
-			"samples/808 Mid Tom.wav"
+			'samples/808 Kick.wav',
+			'samples/808 Snare.wav',
+			'samples/808 Closed Hihat.wav',
+			'samples/808 Clap.wav',
+			'samples/808 Low Tom.wav',
+			'samples/808 Mid Tom.wav',
+			'samples/808 High Tom.wav',
+			'samples/808 Cowbell.wav'
 			];
 
 function init() {
@@ -38,7 +41,7 @@ function loadSoundFile(url, drumNumber) {
 function initSound(arrayBuffer, drumNumber) {
 	context.decodeAudioData(arrayBuffer, function(buffer) {
 		drumBuffers[drumNumber] = buffer;
-		console.log("sampleLoaded");
+		console.log('sampleLoaded');
 	}, function(e) {
 		console.log('Error decoding file', e);
 	});
@@ -50,7 +53,7 @@ function playDrum(time, bufferNumber) {
 	source.loop = false;
 	source.connect(context.destination);
 	source.start(time);
-	console.log("playing drum number: " + bufferNumber);
+	console.log('playing drum number: ' + bufferNumber);
 }
 
 function togglePlay() {
@@ -61,17 +64,17 @@ function togglePlay() {
 		scheduler();
 		anim.start();
 		imageObj.src = 'img/stop_64.png';
-	}	
+	}
 	else {
 		playing = false;
-		window.clearTimeout( timerID );	
+		window.clearTimeout( timerID );
 		//stop animation at end of bar (most probably a bad way of doing this)
 		setTimeout(function(){
 			anim.stop();
 			clockHand.rotation(247.5);
 			clockHandLayer.draw();
 			imageObj.src = 'img/play_64.png';
-		}, (nextBarStartTime - now)*1000);		
+		}, (nextBarStartTime - now)*1000);
 	}
 }
 
