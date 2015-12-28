@@ -6,7 +6,7 @@ var centerX;
 var centerY;
 
 var layers = [];
-var clockHandLayer; 
+var clockHandLayer;
 var clockHand;
 var imageObj;
 
@@ -39,19 +39,19 @@ var drumColours = [
 		['#e5f3cf', '#aad962'],
 		['#b3edd9', '#03c383'],
 		['#b2d5ca', '#017351'],
-		['#b2cbcd', '#01545a']	
+		['#b2cbcd', '#01545a']
 	];
 
 /* colours used
-#1a1334    #26294a    #01545a    
-#017351    #03c383    #aad962    
-#fbbf45    #ef6a32    #ed0345    
-#a12a5e    #710162    #110141    
+#1a1334    #26294a    #01545a
+#017351    #03c383    #aad962
+#fbbf45    #ef6a32    #ed0345
+#a12a5e    #710162    #110141
 */
 
 //event handler for window resize
 window.addEventListener('resize', resizeCanvas, false);
- 
+
 //resize calculates dimensions then calls draw canvas
 function resizeCanvas() {
     var canvasWidth = window.innerWidth;
@@ -61,19 +61,19 @@ function resizeCanvas() {
     drawCanvas(canvasWidth,canvasHeight);
     updateDrumNumber();
 }
- 
+
 function drawCanvas(canvasWidth,canvasHeight) {
- 
-	stage = new Kinetic.Stage({
+
+	stage = new Konva.Stage({
         container: 'container',
         width: canvasWidth,
         height: canvasHeight
     });
 
 	//add Start/Stop circle
-    var circleLayer = new Kinetic.Layer();
+    var circleLayer = new Konva.Layer();
 
-    var circle = new Kinetic.Circle({
+    var circle = new Konva.Circle({
     	x: centerX,
     	y: centerY,
 	  	radius: 40,
@@ -86,32 +86,32 @@ function drawCanvas(canvasWidth,canvasHeight) {
 		togglePlay();
 	});
 
-	circleLayer.on('mouseover', function () {
-		document.body.style.cursor = 'pointer';
-		circle.fill('black');
-		circleLayer.draw();
-	});
+	// circleLayer.on('mouseover', function () {
+	// 	document.body.style.cursor = 'pointer';
+	// 	circle.fill('black');
+	// 	circleLayer.draw();
+	// });
 
-	circleLayer.on('mouseout', function () {
-		document.body.style.cursor = 'default';
-		circle.fill('grey');
-		circleLayer.draw();
-	});
+	// circleLayer.on('mouseout', function () {
+	// 	document.body.style.cursor = 'default';
+	// 	circle.fill('grey');
+	// 	circleLayer.draw();
+	// });
 
 	circleLayer.add(circle);
 
-	//playPause = new Kinetic.Layer();
+	//playPause = new Konva.Layer();
 
 	imageObj = new Image();
 	imageObj.onload = function() {
- 		var image = new Kinetic.Image({
+ 		var image = new Konva.Image({
 		    x: centerX - 16,
 		    y: centerY - 16,
 		    image: imageObj,
 		    width: 32,
 		    height: 32
 		});
-	 	
+
 	 	circleLayer.add(image);
 	 	circleLayer.draw();
 	};
@@ -120,24 +120,24 @@ function drawCanvas(canvasWidth,canvasHeight) {
 	stage.add(circleLayer);
 
 	//add rotating clock hand
-	clockHandLayer = new Kinetic.Layer();
+	clockHandLayer = new Konva.Layer();
 
-	clockHand = new Kinetic.Arc({
+	clockHand = new Konva.Arc({
 		x: stage.width()/2,
 	    y: stage.height()/2,
 	    innerRadius: 42,
 	    outerRadius: 65 + (arcWidth * numberOfDrums),
-	    fillLinearGradientStartPoint: {x:0, y:0},
-        fillLinearGradientEndPoint: {x:0,y:80},
+	    fillLinearGradientStartPoint: { x:0, y:0 },
+        fillLinearGradientEndPoint: { x:0, y:80 },
         fillLinearGradientColorStops: [0, '#26294a', 1, 'white'],
 	    angle: 22.5,
-	    rotationDeg: 247.5
+	    rotation: 247.5
 	});
 
 	clockHandLayer.add(clockHand);
 	stage.add(clockHandLayer);
 
-	anim = new Kinetic.Animation(function(frame) {
+	anim = new Konva.Animation(function(frame) {
         var angleDiff = frame.timeDiff * angularSpeed / 1000;
         clockHand.rotate(angleDiff);
     }, clockHandLayer);
@@ -146,7 +146,7 @@ function drawCanvas(canvasWidth,canvasHeight) {
 	for (var i = 0; i < 8; i += 1) {
 		drawDrumLayer(i);
 	}
-    
+
 }
 
 function drawDrumLayer(drumNumber) {
@@ -155,14 +155,14 @@ function drawDrumLayer(drumNumber) {
 		layers[drumNumber].destroy();
 	}
 
-	layers[drumNumber] = new Kinetic.Layer();
+	layers[drumNumber] = new Konva.Layer();
 
     //var numBeats = 16;
     var beatAngle = 360 / barDivisions[drumNumber];
 
     //create drum sectors
     for (var i = 0; i < barDivisions[drumNumber]; i += 1) {
-    	drumArcs[drumNumber][i] = new Kinetic.Arc({
+    	drumArcs[drumNumber][i] = new Konva.Arc({
 	    	x: stage.width()/2,
 	    	y: stage.height()/2,
 	    	innerRadius: 65 + (arcWidth * drumNumber),
@@ -172,25 +172,13 @@ function drawDrumLayer(drumNumber) {
 	    	strokeWidth: 2,
 	    	angle: beatAngle,
 	    	opacity: 0.8,
-	    	rotationDeg: (270 + (beatAngle * i))%360,
+	    	rotation: (270 + (beatAngle * i))%360,
     	});
 
     	if (drumPattern[drumNumber][i] === 1) {
     		drumArcs[drumNumber][i].fill(drumColours[drumNumber][1]);
     	}
 
-    	/*
-    	drumArcs[drumNumber][i].on('mouseover', function () {
-    		this.opacity(1);
-    		layers[drumNumber].draw();
-    	});
-
-    	drumArcs[drumNumber][i].on('mouseout', function () {
-    		this.opacity(0.8);
-    		layers[drumNumber].draw();
-    	});
-		*/
-	
 		//check for click events
         drumArcs[drumNumber][i].on('click touchstart', function() {
         	//find drum selected and array position
@@ -217,7 +205,7 @@ function drawDrumLayer(drumNumber) {
             layers[drumNumber].draw();
         });
 
-    	layers[drumNumber].add(drumArcs[drumNumber][i]);	
+    	layers[drumNumber].add(drumArcs[drumNumber][i]);
     }
 
     stage.add(layers[drumNumber]);
@@ -238,11 +226,12 @@ function updateDrumNumber() {
 
     for (var i = 1; i <= numberOfDrums; i += 1) {
     	//add options for this drum to page
-        target.append(Mustache.render(template, {num: i, arrayNum: i-1})); 
+        target.append(Mustache.render(template, {num: i, arrayNum: i - 1}));
         //change value of select element to match that in samples array
         var targetID = "#drum" + i + "Sample";
         $(targetID).val(samples[i-1]);
-    }   
+    }
+
     for (var j = 0; j < 8; j += 1) {
     	if (j < numberOfDrums) {
     		layers[j].show();
@@ -274,5 +263,5 @@ $(document).ready(function () {
     // $('#dismiss-alert').click(function() {
     // 	$('#alert').slideToggle(500);
     // });
-}); 
+});
 
