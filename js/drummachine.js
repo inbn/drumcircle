@@ -63,7 +63,7 @@ function togglePlay() {
 		nextBarStartTime = now;
 		scheduler();
 		anim.start();
-		imageObj.src = 'img/stop_64.png';
+		drawPlayToggle('stop');
 	}
 	else {
 		playing = false;
@@ -73,7 +73,7 @@ function togglePlay() {
 			anim.stop();
 			clockHand.rotation(247.5);
 			clockHandLayer.draw();
-			imageObj.src = 'img/play_64.png';
+			drawPlayToggle('start');
 		}, (nextBarStartTime - now)*1000);
 	}
 }

@@ -8,7 +8,8 @@ var centerY;
 var layers = [];
 var clockHandLayer;
 var clockHand;
-var imageObj;
+var stopStartLayer;
+var stopStartSymbol;
 
 var numberOfDrums = 6;
 var arcWidth = 30;
@@ -72,44 +73,8 @@ function drawCanvas(canvasWidth, canvasHeight) {
         height: canvasHeight
     });
 
-	//add Start/Stop circle
-    var circleLayer = new Konva.Layer();
-
-    var circle = new Konva.Circle({
-    	x: centerX,
-    	y: centerY,
-	  	radius: 40,
-	  	fill: '#110141',
-	  	stroke: 'white',
-	  	strokeWidth: 1
-	});
-
-	circleLayer.on('click touchstart', function() {
-		togglePlay();
-	});
-
-	circleLayer.add(circle);
-
-	//playPause = new Konva.Layer();
-
-	imageObj = new Image();
-	imageObj.onload = function() {
- 		var image = new Konva.Image({
-		    x: centerX - 16,
-		    y: centerY - 16,
-		    image: imageObj,
-		    width: 32,
-		    height: 32
-		});
-
-	 	circleLayer.add(image);
-	 	circleLayer.draw();
-	};
-	imageObj.src = 'img/play_64.png';
-
-	stage.add(circleLayer);
-
 	drawClockHand();
+	drawPlayToggle('start');
 
 	anim = new Konva.Animation(function(frame) {
         var angleDiff = frame.timeDiff * angularSpeed / 1000;
@@ -120,10 +85,9 @@ function drawCanvas(canvasWidth, canvasHeight) {
 	for (var i = 0; i < 8; i += 1) {
 		drawDrumLayer(i);
 	}
-
 }
 
-// add rotating clock hand
+// Add rotating clock hand
 function drawClockHand() {
 
 	clockHandLayer = new Konva.Layer();
@@ -144,24 +108,76 @@ function drawClockHand() {
 	stage.add(clockHandLayer);
 }
 
+// Add circular play/stop button
+function drawPlayToggle(action) {
+
+	// Destroy old layer
+	if (stopStartLayer) {
+		stopStartLayer.destroy();
+	}
+
+    stopStartLayer = new Konva.Layer();
+
+    var circle = new Konva.Circle({
+    	x: centerX,
+    	y: centerY,
+	  	radius: 40,
+	  	fill: '#110141',
+	  	stroke: '#fff',
+	  	strokeWidth: 1
+	});
+
+	stopStartLayer.add(circle);
+
+	if (action == 'stop') {
+		stopStartSymbol = new Konva.Rect({
+	    	x: centerX - 15,
+	    	y: centerY - 15,
+		  	width: 30,
+		  	height: 30,
+		  	fill: '#fff'
+		});
+	} else {
+		stopStartSymbol = new Konva.RegularPolygon({
+	    	x: centerX,
+	    	y: centerY,
+		    sides: 3,
+		    radius: 20,
+		    fill: '#fff',
+		    rotation: 90
+		});
+	}
+
+ 	stopStartLayer.add(stopStartSymbol);
+
+ 	stopStartLayer.on('click touchstart', function() {
+		togglePlay();
+	});
+
+ 	stopStartLayer.draw();
+
+ 	stage.add(stopStartLayer);
+}
+
+// Add one layer of drum sectors
 function drawDrumLayer(drumNumber) {
 
-	// destroy old layer
-	if(layers[drumNumber]) {
+	// Destroy old layer
+	if (layers[drumNumber]) {
 		layers[drumNumber].destroy();
 	}
 
-	// create new layer
+	// Create new layer
 	layers[drumNumber] = new Konva.Layer();
-	// calculate angle in degrees for each sector
+	// Calculate angle in degrees for each sector
     var beatAngle = 360 / barDivisions[drumNumber];
 
-    // create drum sectors
+    // Create drum sector arcs
     for (var i = 0; i < barDivisions[drumNumber]; i += 1) {
 
     	drumArcs[drumNumber][i] = new Konva.Arc({
-	    	x: stage.width()/2,
-	    	y: stage.height()/2,
+	    	x: stage.width() / 2,
+	    	y: stage.height() / 2,
 	    	innerRadius: 65 + (arcWidth * drumNumber),
 	    	outerRadius: (65 + arcWidth) + (arcWidth * drumNumber),
 	    	fill: drumColours[drumNumber][0],
@@ -176,9 +192,9 @@ function drawDrumLayer(drumNumber) {
     		drumArcs[drumNumber][i].fill(drumColours[drumNumber][1]);
     	}
 
-		// create event listener for click and touchstart events
+		// Create event listener for click and touchstart events
         drumArcs[drumNumber][i].on('click touchstart', function() {
-        	//find drum selected and array position
+        	// Find drum selected and array position
         	var drumSelected;
 
         	for (var j = 0; j < drumArcs.length; j += 1) {
@@ -190,7 +206,7 @@ function drawDrumLayer(drumNumber) {
 
       		var arrayPosition = drumArcs[drumSelected].indexOf(this);
 
-      		//switch value of item in drumPattern array
+      		// Switch value of item in drumPattern array
         	if (drumPattern[drumSelected][arrayPosition] === 0) {
         		this.fill(drumColours[drumSelected][1]);
         		drumPattern[drumSelected][arrayPosition] = 1;
