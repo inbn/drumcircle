@@ -41,9 +41,10 @@ function loadSoundFile(url, drumNumber) {
 function initSound(arrayBuffer, drumNumber) {
 	context.decodeAudioData(arrayBuffer, function(buffer) {
 		drumBuffers[drumNumber] = buffer;
-		console.log('sampleLoaded');
+        updateStatus('Sample loaded: ' + samples[drumNumber]);
 	}, function(e) {
 		console.log('Error decoding file', e);
+        $statusArea.html('Error decoding file: ' + samples[drumNumber]);
 	});
 }
 
@@ -53,7 +54,6 @@ function playDrum(time, bufferNumber) {
 	source.loop = false;
 	source.connect(context.destination);
 	source.start(time);
-	console.log('playing drum number: ' + bufferNumber);
 }
 
 function togglePlay() {

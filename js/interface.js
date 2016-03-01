@@ -11,8 +11,9 @@ var clockHand;
 var stopStartLayer;
 var stopStartSymbol;
 
-var numberOfDrums = 6;
-var arcWidth = 30;
+var numberOfDrums = 5;
+var arcWidth = 40;
+var innerRadius = 40;
 
 var anim;
 
@@ -51,6 +52,7 @@ var drumColours = [
 */
 
 var $container = $('.js-canvas-container');
+var $statusArea = $('.js-status');
 
 //event handler for window resize
 window.addEventListener('resize', resizeCanvas, false);
@@ -61,8 +63,15 @@ function resizeCanvas() {
     var canvasHeight = $container.height() - 10;
     centerX = canvasWidth / 2;
 	centerY = canvasHeight / 2;
+    calculateArcWidth();
     drawCanvas(canvasWidth, canvasHeight);
     updateDrumNumber();
+}
+
+function calculateArcWidth() {
+    var padding = 10;
+    var min = Math.min(centerX, centerY);
+    arcWidth = (min - innerRadius - padding) / 8;
 }
 
 function drawCanvas(canvasWidth, canvasHeight) {
@@ -161,7 +170,6 @@ function drawPlayToggle(action) {
 
 // Add one layer of drum sectors
 function drawDrumLayer(drumNumber) {
-
 	// Destroy old layer
 	if (layers[drumNumber]) {
 		layers[drumNumber].destroy();
@@ -178,8 +186,8 @@ function drawDrumLayer(drumNumber) {
     	drumArcs[drumNumber][i] = new Konva.Arc({
 	    	x: stage.width() / 2,
 	    	y: stage.height() / 2,
-	    	innerRadius: 65 + (arcWidth * drumNumber),
-	    	outerRadius: (65 + arcWidth) + (arcWidth * drumNumber),
+	    	innerRadius: innerRadius + (arcWidth * drumNumber),
+	    	outerRadius: (innerRadius + arcWidth) + (arcWidth * drumNumber),
 	    	fill: drumColours[drumNumber][0],
 	    	stroke: '#26294a',
 	    	strokeWidth: 2,
@@ -261,8 +269,16 @@ function updateDrumNumber() {
 	});
 
     // Update clockHand radius
-	clockHand.outerRadius(65 + (arcWidth * numberOfDrums));
+	clockHand.outerRadius(innerRadius + (arcWidth * numberOfDrums));
 	clockHandLayer.draw();
+}
+
+function updateStatus(message) {
+    $statusArea.removeClass('hidden');
+    $statusArea.html(message);
+    setTimeout(function(){
+        $statusArea.addClass('hidden');
+    }, 5000);
 }
 
 // Create event listeners
