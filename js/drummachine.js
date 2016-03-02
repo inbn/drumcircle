@@ -44,7 +44,7 @@ function initSound(arrayBuffer, drumNumber) {
         updateStatus('Sample loaded: ' + samples[drumNumber]);
 	}, function(e) {
 		console.log('Error decoding file', e);
-        $statusArea.html('Error decoding file: ' + samples[drumNumber]);
+        updateStatus('Error decoding file: ' + samples[drumNumber]);
 	});
 }
 
@@ -74,7 +74,7 @@ function togglePlay() {
 			clockHand.rotation(247.5);
 			clockHandLayer.draw();
 			drawPlayToggle('start');
-		}, (nextBarStartTime - now)*1000);
+		}, (nextBarStartTime - now) * 1000);
 	}
 }
 
