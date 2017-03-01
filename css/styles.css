@@ -34,7 +34,6 @@ h3 {
     display: table;
     width: 100%;
     background: #1a1334;
-
 }
 
 .header__title {
@@ -61,10 +60,25 @@ h3 {
     padding-bottom: 1rem;
 }
 
+.header__button {
+    border: 1px solid #fff;
+    border-radius: 4px;
+    background: transparent;
+    color: #fff;
+    font-size: 16px;
+    font-family: Inconsolata;
+    transition: 0.3s ease;
+}
+
+.header__button:hover,
+.header__button:focus {
+    background-color: #fff;
+    color: #1a1334;
+}
+
 .header__menu-list-item-link {
     color: #fff;
-    transition: .2s;
-    text-decoration: none;
+    transition: 0.2s;
     margin-bottom: 0.2em
 }
 
