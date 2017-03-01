@@ -1,0 +1,24 @@
+{
+  "name": "drumcircle",
+  "version": "1.0.0",
+  "description": "Drumcircle is a circular drum sequencer built using the [Konva.js](https://github.com/konvajs/konva) canvas framework and the Web Audio API.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inbn/drumcircle.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/inbn/drumcircle/issues"
+  },
+  "homepage": "https://github.com/inbn/drumcircle#readme",
+  "devDependencies": {
+    "konva": "^1.4.0",
+    "mustache": "^2.3.0",
+    "webpack": "^2.2.1"
+  }
+}
