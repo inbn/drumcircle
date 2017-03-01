@@ -1,9 +1,13 @@
 'use strict';
 
+// Load libraries
 require('konva')
 var Mustache = require('mustache')
+
+// Load default drum patter
 var drumTracks = require('./drumTracks.json');
 
+// Initalise interface variables
 var canvas = null;
 var context = null;
 var stage = null;
@@ -21,11 +25,14 @@ var numberOfDrums = 5;
 var arcWidth = 40;
 var innerRadius = 40;
 
-var samplesPath = 'samples/';
-
 var anim;
 
+for (var drumArcs = []; drumArcs.length <= 8; drumArcs.push([]));
+
+// Intialise audio variables
 var context = new AudioContext();
+
+var samplesPath = 'samples/';
 
 var tempo = 120;
 var barTime = 240 / tempo;
@@ -36,8 +43,7 @@ var playing = false;
 var nextBarStartTime;
 var timerID = null;
 
-for (var drumArcs = []; drumArcs.length <= 8; drumArcs.push([]));
-
+// Get some elements
 var $container = $('.js-canvas-container');
 var $statusArea = $('.js-status');
 
@@ -265,7 +271,7 @@ function updateStatus(message) {
     }, 5000);
 }
 
-function init() {
+function loadSamples() {
     for (var i = 0; i < drumTracks.length; i++ ) {
         loadSoundFile(drumTracks[i].sample, i);
     }
@@ -361,8 +367,7 @@ $('#tempo').change(function() {
 });
 
 $('.js-options-toggle').click(function(event) {
-    event.preventDefault();
     $('#controls').toggle();
 });
 
-init();
+loadSamples();

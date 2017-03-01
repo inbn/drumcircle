@@ -70,645 +70,6 @@
 /* 0 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
- * mustache.js - Logic-less {{mustache}} templates with JavaScript
- * http://github.com/janl/mustache.js
- */
-
-/*global define: false Mustache: true*/
-
-(function defineMustache (global, factory) {
-  if (typeof exports === 'object' && exports && typeof exports.nodeName !== 'string') {
-    factory(exports); // CommonJS
-  } else if (true) {
-    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory),
-				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
-				(__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__),
-				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)); // AMD
-  } else {
-    global.Mustache = {};
-    factory(global.Mustache); // script, wsh, asp
-  }
-}(this, function mustacheFactory (mustache) {
-
-  var objectToString = Object.prototype.toString;
-  var isArray = Array.isArray || function isArrayPolyfill (object) {
-    return objectToString.call(object) === '[object Array]';
-  };
-
-  function isFunction (object) {
-    return typeof object === 'function';
-  }
-
-  /**
-   * More correct typeof string handling array
-   * which normally returns typeof 'object'
-   */
-  function typeStr (obj) {
-    return isArray(obj) ? 'array' : typeof obj;
-  }
-
-  function escapeRegExp (string) {
-    return string.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, '\\$&');
-  }
-
-  /**
-   * Null safe way of checking whether or not an object,
-   * including its prototype, has a given property
-   */
-  function hasProperty (obj, propName) {
-    return obj != null && typeof obj === 'object' && (propName in obj);
-  }
-
-  // Workaround for https://issues.apache.org/jira/browse/COUCHDB-577
-  // See https://github.com/janl/mustache.js/issues/189
-  var regExpTest = RegExp.prototype.test;
-  function testRegExp (re, string) {
-    return regExpTest.call(re, string);
-  }
-
-  var nonSpaceRe = /\S/;
-  function isWhitespace (string) {
-    return !testRegExp(nonSpaceRe, string);
-  }
-
-  var entityMap = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-    '/': '&#x2F;',
-    '`': '&#x60;',
-    '=': '&#x3D;'
-  };
-
-  function escapeHtml (string) {
-    return String(string).replace(/[&<>"'`=\/]/g, function fromEntityMap (s) {
-      return entityMap[s];
-    });
-  }
-
-  var whiteRe = /\s*/;
-  var spaceRe = /\s+/;
-  var equalsRe = /\s*=/;
-  var curlyRe = /\s*\}/;
-  var tagRe = /#|\^|\/|>|\{|&|=|!/;
-
-  /**
-   * Breaks up the given `template` string into a tree of tokens. If the `tags`
-   * argument is given here it must be an array with two string values: the
-   * opening and closing tags used in the template (e.g. [ "<%", "%>" ]). Of
-   * course, the default is to use mustaches (i.e. mustache.tags).
-   *
-   * A token is an array with at least 4 elements. The first element is the
-   * mustache symbol that was used inside the tag, e.g. "#" or "&". If the tag
-   * did not contain a symbol (i.e. {{myValue}}) this element is "name". For
-   * all text that appears outside a symbol this element is "text".
-   *
-   * The second element of a token is its "value". For mustache tags this is
-   * whatever else was inside the tag besides the opening symbol. For text tokens
-   * this is the text itself.
-   *
-   * The third and fourth elements of the token are the start and end indices,
-   * respectively, of the token in the original template.
-   *
-   * Tokens that are the root node of a subtree contain two more elements: 1) an
-   * array of tokens in the subtree and 2) the index in the original template at
-   * which the closing tag for that section begins.
-   */
-  function parseTemplate (template, tags) {
-    if (!template)
-      return [];
-
-    var sections = [];     // Stack to hold section tokens
-    var tokens = [];       // Buffer to hold the tokens
-    var spaces = [];       // Indices of whitespace tokens on the current line
-    var hasTag = false;    // Is there a {{tag}} on the current line?
-    var nonSpace = false;  // Is there a non-space char on the current line?
-
-    // Strips all whitespace tokens array for the current line
-    // if there was a {{#tag}} on it and otherwise only space.
-    function stripSpace () {
-      if (hasTag && !nonSpace) {
-        while (spaces.length)
-          delete tokens[spaces.pop()];
-      } else {
-        spaces = [];
-      }
-
-      hasTag = false;
-      nonSpace = false;
-    }
-
-    var openingTagRe, closingTagRe, closingCurlyRe;
-    function compileTags (tagsToCompile) {
-      if (typeof tagsToCompile === 'string')
-        tagsToCompile = tagsToCompile.split(spaceRe, 2);
-
-      if (!isArray(tagsToCompile) || tagsToCompile.length !== 2)
-        throw new Error('Invalid tags: ' + tagsToCompile);
-
-      openingTagRe = new RegExp(escapeRegExp(tagsToCompile[0]) + '\\s*');
-      closingTagRe = new RegExp('\\s*' + escapeRegExp(tagsToCompile[1]));
-      closingCurlyRe = new RegExp('\\s*' + escapeRegExp('}' + tagsToCompile[1]));
-    }
-
-    compileTags(tags || mustache.tags);
-
-    var scanner = new Scanner(template);
-
-    var start, type, value, chr, token, openSection;
-    while (!scanner.eos()) {
-      start = scanner.pos;
-
-      // Match any text between tags.
-      value = scanner.scanUntil(openingTagRe);
-
-      if (value) {
-        for (var i = 0, valueLength = value.length; i < valueLength; ++i) {
-          chr = value.charAt(i);
-
-          if (isWhitespace(chr)) {
-            spaces.push(tokens.length);
-          } else {
-            nonSpace = true;
-          }
-
-          tokens.push([ 'text', chr, start, start + 1 ]);
-          start += 1;
-
-          // Check for whitespace on the current line.
-          if (chr === '\n')
-            stripSpace();
-        }
-      }
-
-      // Match the opening tag.
-      if (!scanner.scan(openingTagRe))
-        break;
-
-      hasTag = true;
-
-      // Get the tag type.
-      type = scanner.scan(tagRe) || 'name';
-      scanner.scan(whiteRe);
-
-      // Get the tag value.
-      if (type === '=') {
-        value = scanner.scanUntil(equalsRe);
-        scanner.scan(equalsRe);
-        scanner.scanUntil(closingTagRe);
-      } else if (type === '{') {
-        value = scanner.scanUntil(closingCurlyRe);
-        scanner.scan(curlyRe);
-        scanner.scanUntil(closingTagRe);
-        type = '&';
-      } else {
-        value = scanner.scanUntil(closingTagRe);
-      }
-
-      // Match the closing tag.
-      if (!scanner.scan(closingTagRe))
-        throw new Error('Unclosed tag at ' + scanner.pos);
-
-      token = [ type, value, start, scanner.pos ];
-      tokens.push(token);
-
-      if (type === '#' || type === '^') {
-        sections.push(token);
-      } else if (type === '/') {
-        // Check section nesting.
-        openSection = sections.pop();
-
-        if (!openSection)
-          throw new Error('Unopened section "' + value + '" at ' + start);
-
-        if (openSection[1] !== value)
-          throw new Error('Unclosed section "' + openSection[1] + '" at ' + start);
-      } else if (type === 'name' || type === '{' || type === '&') {
-        nonSpace = true;
-      } else if (type === '=') {
-        // Set the tags for the next time around.
-        compileTags(value);
-      }
-    }
-
-    // Make sure there are no open sections when we're done.
-    openSection = sections.pop();
-
-    if (openSection)
-      throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos);
-
-    return nestTokens(squashTokens(tokens));
-  }
-
-  /**
-   * Combines the values of consecutive text tokens in the given `tokens` array
-   * to a single token.
-   */
-  function squashTokens (tokens) {
-    var squashedTokens = [];
-
-    var token, lastToken;
-    for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
-      token = tokens[i];
-
-      if (token) {
-        if (token[0] === 'text' && lastToken && lastToken[0] === 'text') {
-          lastToken[1] += token[1];
-          lastToken[3] = token[3];
-        } else {
-          squashedTokens.push(token);
-          lastToken = token;
-        }
-      }
-    }
-
-    return squashedTokens;
-  }
-
-  /**
-   * Forms the given array of `tokens` into a nested tree structure where
-   * tokens that represent a section have two additional items: 1) an array of
-   * all tokens that appear in that section and 2) the index in the original
-   * template that represents the end of that section.
-   */
-  function nestTokens (tokens) {
-    var nestedTokens = [];
-    var collector = nestedTokens;
-    var sections = [];
-
-    var token, section;
-    for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
-      token = tokens[i];
-
-      switch (token[0]) {
-        case '#':
-        case '^':
-          collector.push(token);
-          sections.push(token);
-          collector = token[4] = [];
-          break;
-        case '/':
-          section = sections.pop();
-          section[5] = token[2];
-          collector = sections.length > 0 ? sections[sections.length - 1][4] : nestedTokens;
-          break;
-        default:
-          collector.push(token);
-      }
-    }
-
-    return nestedTokens;
-  }
-
-  /**
-   * A simple string scanner that is used by the template parser to find
-   * tokens in template strings.
-   */
-  function Scanner (string) {
-    this.string = string;
-    this.tail = string;
-    this.pos = 0;
-  }
-
-  /**
-   * Returns `true` if the tail is empty (end of string).
-   */
-  Scanner.prototype.eos = function eos () {
-    return this.tail === '';
-  };
-
-  /**
-   * Tries to match the given regular expression at the current position.
-   * Returns the matched text if it can match, the empty string otherwise.
-   */
-  Scanner.prototype.scan = function scan (re) {
-    var match = this.tail.match(re);
-
-    if (!match || match.index !== 0)
-      return '';
-
-    var string = match[0];
-
-    this.tail = this.tail.substring(string.length);
-    this.pos += string.length;
-
-    return string;
-  };
-
-  /**
-   * Skips all text until the given regular expression can be matched. Returns
-   * the skipped string, which is the entire tail if no match can be made.
-   */
-  Scanner.prototype.scanUntil = function scanUntil (re) {
-    var index = this.tail.search(re), match;
-
-    switch (index) {
-      case -1:
-        match = this.tail;
-        this.tail = '';
-        break;
-      case 0:
-        match = '';
-        break;
-      default:
-        match = this.tail.substring(0, index);
-        this.tail = this.tail.substring(index);
-    }
-
-    this.pos += match.length;
-
-    return match;
-  };
-
-  /**
-   * Represents a rendering context by wrapping a view object and
-   * maintaining a reference to the parent context.
-   */
-  function Context (view, parentContext) {
-    this.view = view;
-    this.cache = { '.': this.view };
-    this.parent = parentContext;
-  }
-
-  /**
-   * Creates a new context using the given view with this context
-   * as the parent.
-   */
-  Context.prototype.push = function push (view) {
-    return new Context(view, this);
-  };
-
-  /**
-   * Returns the value of the given name in this context, traversing
-   * up the context hierarchy if the value is absent in this context's view.
-   */
-  Context.prototype.lookup = function lookup (name) {
-    var cache = this.cache;
-
-    var value;
-    if (cache.hasOwnProperty(name)) {
-      value = cache[name];
-    } else {
-      var context = this, names, index, lookupHit = false;
-
-      while (context) {
-        if (name.indexOf('.') > 0) {
-          value = context.view;
-          names = name.split('.');
-          index = 0;
-
-          /**
-           * Using the dot notion path in `name`, we descend through the
-           * nested objects.
-           *
-           * To be certain that the lookup has been successful, we have to
-           * check if the last object in the path actually has the property
-           * we are looking for. We store the result in `lookupHit`.
-           *
-           * This is specially necessary for when the value has been set to
-           * `undefined` and we want to avoid looking up parent contexts.
-           **/
-          while (value != null && index < names.length) {
-            if (index === names.length - 1)
-              lookupHit = hasProperty(value, names[index]);
-
-            value = value[names[index++]];
-          }
-        } else {
-          value = context.view[name];
-          lookupHit = hasProperty(context.view, name);
-        }
-
-        if (lookupHit)
-          break;
-
-        context = context.parent;
-      }
-
-      cache[name] = value;
-    }
-
-    if (isFunction(value))
-      value = value.call(this.view);
-
-    return value;
-  };
-
-  /**
-   * A Writer knows how to take a stream of tokens and render them to a
-   * string, given a context. It also maintains a cache of templates to
-   * avoid the need to parse the same template twice.
-   */
-  function Writer () {
-    this.cache = {};
-  }
-
-  /**
-   * Clears all cached templates in this writer.
-   */
-  Writer.prototype.clearCache = function clearCache () {
-    this.cache = {};
-  };
-
-  /**
-   * Parses and caches the given `template` and returns the array of tokens
-   * that is generated from the parse.
-   */
-  Writer.prototype.parse = function parse (template, tags) {
-    var cache = this.cache;
-    var tokens = cache[template];
-
-    if (tokens == null)
-      tokens = cache[template] = parseTemplate(template, tags);
-
-    return tokens;
-  };
-
-  /**
-   * High-level method that is used to render the given `template` with
-   * the given `view`.
-   *
-   * The optional `partials` argument may be an object that contains the
-   * names and templates of partials that are used in the template. It may
-   * also be a function that is used to load partial templates on the fly
-   * that takes a single argument: the name of the partial.
-   */
-  Writer.prototype.render = function render (template, view, partials) {
-    var tokens = this.parse(template);
-    var context = (view instanceof Context) ? view : new Context(view);
-    return this.renderTokens(tokens, context, partials, template);
-  };
-
-  /**
-   * Low-level method that renders the given array of `tokens` using
-   * the given `context` and `partials`.
-   *
-   * Note: The `originalTemplate` is only ever used to extract the portion
-   * of the original template that was contained in a higher-order section.
-   * If the template doesn't use higher-order sections, this argument may
-   * be omitted.
-   */
-  Writer.prototype.renderTokens = function renderTokens (tokens, context, partials, originalTemplate) {
-    var buffer = '';
-
-    var token, symbol, value;
-    for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
-      value = undefined;
-      token = tokens[i];
-      symbol = token[0];
-
-      if (symbol === '#') value = this.renderSection(token, context, partials, originalTemplate);
-      else if (symbol === '^') value = this.renderInverted(token, context, partials, originalTemplate);
-      else if (symbol === '>') value = this.renderPartial(token, context, partials, originalTemplate);
-      else if (symbol === '&') value = this.unescapedValue(token, context);
-      else if (symbol === 'name') value = this.escapedValue(token, context);
-      else if (symbol === 'text') value = this.rawValue(token);
-
-      if (value !== undefined)
-        buffer += value;
-    }
-
-    return buffer;
-  };
-
-  Writer.prototype.renderSection = function renderSection (token, context, partials, originalTemplate) {
-    var self = this;
-    var buffer = '';
-    var value = context.lookup(token[1]);
-
-    // This function is used to render an arbitrary template
-    // in the current context by higher-order sections.
-    function subRender (template) {
-      return self.render(template, context, partials);
-    }
-
-    if (!value) return;
-
-    if (isArray(value)) {
-      for (var j = 0, valueLength = value.length; j < valueLength; ++j) {
-        buffer += this.renderTokens(token[4], context.push(value[j]), partials, originalTemplate);
-      }
-    } else if (typeof value === 'object' || typeof value === 'string' || typeof value === 'number') {
-      buffer += this.renderTokens(token[4], context.push(value), partials, originalTemplate);
-    } else if (isFunction(value)) {
-      if (typeof originalTemplate !== 'string')
-        throw new Error('Cannot use higher-order sections without the original template');
-
-      // Extract the portion of the original template that the section contains.
-      value = value.call(context.view, originalTemplate.slice(token[3], token[5]), subRender);
-
-      if (value != null)
-        buffer += value;
-    } else {
-      buffer += this.renderTokens(token[4], context, partials, originalTemplate);
-    }
-    return buffer;
-  };
-
-  Writer.prototype.renderInverted = function renderInverted (token, context, partials, originalTemplate) {
-    var value = context.lookup(token[1]);
-
-    // Use JavaScript's definition of falsy. Include empty arrays.
-    // See https://github.com/janl/mustache.js/issues/186
-    if (!value || (isArray(value) && value.length === 0))
-      return this.renderTokens(token[4], context, partials, originalTemplate);
-  };
-
-  Writer.prototype.renderPartial = function renderPartial (token, context, partials) {
-    if (!partials) return;
-
-    var value = isFunction(partials) ? partials(token[1]) : partials[token[1]];
-    if (value != null)
-      return this.renderTokens(this.parse(value), context, partials, value);
-  };
-
-  Writer.prototype.unescapedValue = function unescapedValue (token, context) {
-    var value = context.lookup(token[1]);
-    if (value != null)
-      return value;
-  };
-
-  Writer.prototype.escapedValue = function escapedValue (token, context) {
-    var value = context.lookup(token[1]);
-    if (value != null)
-      return mustache.escape(value);
-  };
-
-  Writer.prototype.rawValue = function rawValue (token) {
-    return token[1];
-  };
-
-  mustache.name = 'mustache.js';
-  mustache.version = '2.3.0';
-  mustache.tags = [ '{{', '}}' ];
-
-  // All high-level mustache.* functions use this writer.
-  var defaultWriter = new Writer();
-
-  /**
-   * Clears all cached templates in the default writer.
-   */
-  mustache.clearCache = function clearCache () {
-    return defaultWriter.clearCache();
-  };
-
-  /**
-   * Parses and caches the given template in the default writer and returns the
-   * array of tokens it contains. Doing this ahead of time avoids the need to
-   * parse templates on the fly as they are rendered.
-   */
-  mustache.parse = function parse (template, tags) {
-    return defaultWriter.parse(template, tags);
-  };
-
-  /**
-   * Renders the `template` with the given `view` and `partials` using the
-   * default writer.
-   */
-  mustache.render = function render (template, view, partials) {
-    if (typeof template !== 'string') {
-      throw new TypeError('Invalid template! Template should be a "string" ' +
-                          'but "' + typeStr(template) + '" was given as the first ' +
-                          'argument for mustache#render(template, view, partials)');
-    }
-
-    return defaultWriter.render(template, view, partials);
-  };
-
-  // This is here for backwards compatibility with 0.4.x.,
-  /*eslint-disable */ // eslint wants camel cased function name
-  mustache.to_html = function to_html (template, view, partials, send) {
-    /*eslint-enable*/
-
-    var result = mustache.render(template, view, partials);
-
-    if (isFunction(send)) {
-      send(result);
-    } else {
-      return result;
-    }
-  };
-
-  // Export the escaping function so that the user may override it.
-  // See https://github.com/janl/mustache.js/issues/244
-  mustache.escape = escapeHtml;
-
-  // Export these mainly for testing, but also for advanced usage.
-  mustache.Scanner = Scanner;
-  mustache.Context = Context;
-  mustache.Writer = Writer;
-
-  return mustache;
-}));
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
 /* WEBPACK VAR INJECTION */(function(global) {
 /*
  * Konva JavaScript Framework v1.4.0
@@ -17371,423 +16732,646 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3)))
 
 /***/ }),
-/* 2 */,
-/* 3 */
-/***/ (function(module, exports) {
-
-var g;
-
-// This works in non-strict mode
-g = (function() {
-	return this;
-})();
-
-try {
-	// This works if eval is allowed (see CSP)
-	g = g || Function("return this")() || (1,eval)("this");
-} catch(e) {
-	// This works if the window reference is available
-	if(typeof window === "object")
-		g = window;
-}
-
-// g can still be undefined, but nothing to do about it...
-// We return undefined, instead of nothing here, so it's
-// easier to handle this case. if(!global) { ...}
-
-module.exports = g;
-
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports) {
-
-/* (ignored) */
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports) {
-
-/* (ignored) */
-
-/***/ }),
-/* 6 */
+/* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
+var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
+ * mustache.js - Logic-less {{mustache}} templates with JavaScript
+ * http://github.com/janl/mustache.js
+ */
 
+/*global define: false Mustache: true*/
 
-__webpack_require__(1)
-var Mustache = __webpack_require__(0)
-var drumTracks = __webpack_require__(8);
+(function defineMustache (global, factory) {
+  if (typeof exports === 'object' && exports && typeof exports.nodeName !== 'string') {
+    factory(exports); // CommonJS
+  } else if (true) {
+    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory),
+				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
+				(__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)); // AMD
+  } else {
+    global.Mustache = {};
+    factory(global.Mustache); // script, wsh, asp
+  }
+}(this, function mustacheFactory (mustache) {
 
-var canvas = null;
-var context = null;
-var stage = null;
+  var objectToString = Object.prototype.toString;
+  var isArray = Array.isArray || function isArrayPolyfill (object) {
+    return objectToString.call(object) === '[object Array]';
+  };
 
-var centerX;
-var centerY;
+  function isFunction (object) {
+    return typeof object === 'function';
+  }
 
-var layers = [];
-var clockHandLayer;
-var clockHand;
-var stopStartLayer;
-var stopStartSymbol;
+  /**
+   * More correct typeof string handling array
+   * which normally returns typeof 'object'
+   */
+  function typeStr (obj) {
+    return isArray(obj) ? 'array' : typeof obj;
+  }
 
-var numberOfDrums = 5;
-var arcWidth = 40;
-var innerRadius = 40;
+  function escapeRegExp (string) {
+    return string.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, '\\$&');
+  }
 
-var samplesPath = 'samples/';
+  /**
+   * Null safe way of checking whether or not an object,
+   * including its prototype, has a given property
+   */
+  function hasProperty (obj, propName) {
+    return obj != null && typeof obj === 'object' && (propName in obj);
+  }
 
-var anim;
+  // Workaround for https://issues.apache.org/jira/browse/COUCHDB-577
+  // See https://github.com/janl/mustache.js/issues/189
+  var regExpTest = RegExp.prototype.test;
+  function testRegExp (re, string) {
+    return regExpTest.call(re, string);
+  }
 
-var context = new AudioContext();
+  var nonSpaceRe = /\S/;
+  function isWhitespace (string) {
+    return !testRegExp(nonSpaceRe, string);
+  }
 
-var tempo = 120;
-var barTime = 240 / tempo;
-var angularSpeed = 360 / barTime;
-var drumBuffers = [];
-var playing = false;
+  var entityMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '/': '&#x2F;',
+    '`': '&#x60;',
+    '=': '&#x3D;'
+  };
 
-var nextBarStartTime;
-var timerID = null;
-
-for (var drumArcs = []; drumArcs.length <= 8; drumArcs.push([]));
-
-var $container = $('.js-canvas-container');
-var $statusArea = $('.js-status');
-
-// Resize calculates dimensions then calls draw canvas
-function resizeCanvas() {
-    var canvasWidth = $container.width();
-    var canvasHeight = $container.height() - 10;
-    centerX = canvasWidth / 2;
-    centerY = canvasHeight / 2;
-    calculateArcWidth();
-    drawCanvas(canvasWidth, canvasHeight);
-    updateDrumNumber();
-}
-
-function calculateArcWidth() {
-    var padding = 10;
-    var min = Math.min(centerX, centerY);
-    arcWidth = (min - innerRadius - padding) / 8;
-}
-
-function drawCanvas(canvasWidth, canvasHeight) {
-
-    stage = new Konva.Stage({
-        container: 'container',
-        width: canvasWidth,
-        height: canvasHeight
+  function escapeHtml (string) {
+    return String(string).replace(/[&<>"'`=\/]/g, function fromEntityMap (s) {
+      return entityMap[s];
     });
+  }
 
-    drawClockHand();
-    drawPlayToggle('start');
+  var whiteRe = /\s*/;
+  var spaceRe = /\s+/;
+  var equalsRe = /\s*=/;
+  var curlyRe = /\s*\}/;
+  var tagRe = /#|\^|\/|>|\{|&|=|!/;
 
-    anim = new Konva.Animation(function(frame) {
-        var angleDiff = frame.timeDiff * angularSpeed / 1000;
-        clockHand.rotate(angleDiff);
-    }, clockHandLayer);
+  /**
+   * Breaks up the given `template` string into a tree of tokens. If the `tags`
+   * argument is given here it must be an array with two string values: the
+   * opening and closing tags used in the template (e.g. [ "<%", "%>" ]). Of
+   * course, the default is to use mustaches (i.e. mustache.tags).
+   *
+   * A token is an array with at least 4 elements. The first element is the
+   * mustache symbol that was used inside the tag, e.g. "#" or "&". If the tag
+   * did not contain a symbol (i.e. {{myValue}}) this element is "name". For
+   * all text that appears outside a symbol this element is "text".
+   *
+   * The second element of a token is its "value". For mustache tags this is
+   * whatever else was inside the tag besides the opening symbol. For text tokens
+   * this is the text itself.
+   *
+   * The third and fourth elements of the token are the start and end indices,
+   * respectively, of the token in the original template.
+   *
+   * Tokens that are the root node of a subtree contain two more elements: 1) an
+   * array of tokens in the subtree and 2) the index in the original template at
+   * which the closing tag for that section begins.
+   */
+  function parseTemplate (template, tags) {
+    if (!template)
+      return [];
 
-    // create all of the drum layers
-    for (var i = 0; i < 8; i += 1) {
-        drawDrumLayer(i);
+    var sections = [];     // Stack to hold section tokens
+    var tokens = [];       // Buffer to hold the tokens
+    var spaces = [];       // Indices of whitespace tokens on the current line
+    var hasTag = false;    // Is there a {{tag}} on the current line?
+    var nonSpace = false;  // Is there a non-space char on the current line?
+
+    // Strips all whitespace tokens array for the current line
+    // if there was a {{#tag}} on it and otherwise only space.
+    function stripSpace () {
+      if (hasTag && !nonSpace) {
+        while (spaces.length)
+          delete tokens[spaces.pop()];
+      } else {
+        spaces = [];
+      }
+
+      hasTag = false;
+      nonSpace = false;
     }
-}
 
-// Add rotating clock hand
-function drawClockHand() {
+    var openingTagRe, closingTagRe, closingCurlyRe;
+    function compileTags (tagsToCompile) {
+      if (typeof tagsToCompile === 'string')
+        tagsToCompile = tagsToCompile.split(spaceRe, 2);
 
-    clockHandLayer = new Konva.Layer();
+      if (!isArray(tagsToCompile) || tagsToCompile.length !== 2)
+        throw new Error('Invalid tags: ' + tagsToCompile);
 
-    clockHand = new Konva.Arc({
-        x: stage.width() / 2,
-        y: stage.height() / 2,
-        innerRadius: 42,
-        outerRadius: 65 + (arcWidth * numberOfDrums),
-        fillLinearGradientStartPoint: { x: 0, y: 0 },
-        fillLinearGradientEndPoint: { x: 0, y: 80 },
-        fillLinearGradientColorStops: [0, '#26294a', 1, 'white'],
-        angle: 22.5,
-        rotation: 247.5
-    });
-
-    clockHandLayer.add(clockHand);
-    stage.add(clockHandLayer);
-}
-
-// Add circular play/stop button
-function drawPlayToggle(action) {
-
-    // Destroy old layer
-    if (stopStartLayer) {
-        stopStartLayer.destroy();
+      openingTagRe = new RegExp(escapeRegExp(tagsToCompile[0]) + '\\s*');
+      closingTagRe = new RegExp('\\s*' + escapeRegExp(tagsToCompile[1]));
+      closingCurlyRe = new RegExp('\\s*' + escapeRegExp('}' + tagsToCompile[1]));
     }
 
-    stopStartLayer = new Konva.Layer();
+    compileTags(tags || mustache.tags);
 
-    var circle = new Konva.Circle({
-        x: centerX,
-        y: centerY,
-        radius: 40,
-        fill: '#110141',
-        stroke: '#fff',
-        strokeWidth: 1
-    });
+    var scanner = new Scanner(template);
 
-    stopStartLayer.add(circle);
+    var start, type, value, chr, token, openSection;
+    while (!scanner.eos()) {
+      start = scanner.pos;
 
-    if (action == 'stop') {
-        stopStartSymbol = new Konva.Rect({
-            x: centerX - 15,
-            y: centerY - 15,
-            width: 30,
-            height: 30,
-            fill: '#fff'
-        });
+      // Match any text between tags.
+      value = scanner.scanUntil(openingTagRe);
+
+      if (value) {
+        for (var i = 0, valueLength = value.length; i < valueLength; ++i) {
+          chr = value.charAt(i);
+
+          if (isWhitespace(chr)) {
+            spaces.push(tokens.length);
+          } else {
+            nonSpace = true;
+          }
+
+          tokens.push([ 'text', chr, start, start + 1 ]);
+          start += 1;
+
+          // Check for whitespace on the current line.
+          if (chr === '\n')
+            stripSpace();
+        }
+      }
+
+      // Match the opening tag.
+      if (!scanner.scan(openingTagRe))
+        break;
+
+      hasTag = true;
+
+      // Get the tag type.
+      type = scanner.scan(tagRe) || 'name';
+      scanner.scan(whiteRe);
+
+      // Get the tag value.
+      if (type === '=') {
+        value = scanner.scanUntil(equalsRe);
+        scanner.scan(equalsRe);
+        scanner.scanUntil(closingTagRe);
+      } else if (type === '{') {
+        value = scanner.scanUntil(closingCurlyRe);
+        scanner.scan(curlyRe);
+        scanner.scanUntil(closingTagRe);
+        type = '&';
+      } else {
+        value = scanner.scanUntil(closingTagRe);
+      }
+
+      // Match the closing tag.
+      if (!scanner.scan(closingTagRe))
+        throw new Error('Unclosed tag at ' + scanner.pos);
+
+      token = [ type, value, start, scanner.pos ];
+      tokens.push(token);
+
+      if (type === '#' || type === '^') {
+        sections.push(token);
+      } else if (type === '/') {
+        // Check section nesting.
+        openSection = sections.pop();
+
+        if (!openSection)
+          throw new Error('Unopened section "' + value + '" at ' + start);
+
+        if (openSection[1] !== value)
+          throw new Error('Unclosed section "' + openSection[1] + '" at ' + start);
+      } else if (type === 'name' || type === '{' || type === '&') {
+        nonSpace = true;
+      } else if (type === '=') {
+        // Set the tags for the next time around.
+        compileTags(value);
+      }
+    }
+
+    // Make sure there are no open sections when we're done.
+    openSection = sections.pop();
+
+    if (openSection)
+      throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos);
+
+    return nestTokens(squashTokens(tokens));
+  }
+
+  /**
+   * Combines the values of consecutive text tokens in the given `tokens` array
+   * to a single token.
+   */
+  function squashTokens (tokens) {
+    var squashedTokens = [];
+
+    var token, lastToken;
+    for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+      token = tokens[i];
+
+      if (token) {
+        if (token[0] === 'text' && lastToken && lastToken[0] === 'text') {
+          lastToken[1] += token[1];
+          lastToken[3] = token[3];
+        } else {
+          squashedTokens.push(token);
+          lastToken = token;
+        }
+      }
+    }
+
+    return squashedTokens;
+  }
+
+  /**
+   * Forms the given array of `tokens` into a nested tree structure where
+   * tokens that represent a section have two additional items: 1) an array of
+   * all tokens that appear in that section and 2) the index in the original
+   * template that represents the end of that section.
+   */
+  function nestTokens (tokens) {
+    var nestedTokens = [];
+    var collector = nestedTokens;
+    var sections = [];
+
+    var token, section;
+    for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+      token = tokens[i];
+
+      switch (token[0]) {
+        case '#':
+        case '^':
+          collector.push(token);
+          sections.push(token);
+          collector = token[4] = [];
+          break;
+        case '/':
+          section = sections.pop();
+          section[5] = token[2];
+          collector = sections.length > 0 ? sections[sections.length - 1][4] : nestedTokens;
+          break;
+        default:
+          collector.push(token);
+      }
+    }
+
+    return nestedTokens;
+  }
+
+  /**
+   * A simple string scanner that is used by the template parser to find
+   * tokens in template strings.
+   */
+  function Scanner (string) {
+    this.string = string;
+    this.tail = string;
+    this.pos = 0;
+  }
+
+  /**
+   * Returns `true` if the tail is empty (end of string).
+   */
+  Scanner.prototype.eos = function eos () {
+    return this.tail === '';
+  };
+
+  /**
+   * Tries to match the given regular expression at the current position.
+   * Returns the matched text if it can match, the empty string otherwise.
+   */
+  Scanner.prototype.scan = function scan (re) {
+    var match = this.tail.match(re);
+
+    if (!match || match.index !== 0)
+      return '';
+
+    var string = match[0];
+
+    this.tail = this.tail.substring(string.length);
+    this.pos += string.length;
+
+    return string;
+  };
+
+  /**
+   * Skips all text until the given regular expression can be matched. Returns
+   * the skipped string, which is the entire tail if no match can be made.
+   */
+  Scanner.prototype.scanUntil = function scanUntil (re) {
+    var index = this.tail.search(re), match;
+
+    switch (index) {
+      case -1:
+        match = this.tail;
+        this.tail = '';
+        break;
+      case 0:
+        match = '';
+        break;
+      default:
+        match = this.tail.substring(0, index);
+        this.tail = this.tail.substring(index);
+    }
+
+    this.pos += match.length;
+
+    return match;
+  };
+
+  /**
+   * Represents a rendering context by wrapping a view object and
+   * maintaining a reference to the parent context.
+   */
+  function Context (view, parentContext) {
+    this.view = view;
+    this.cache = { '.': this.view };
+    this.parent = parentContext;
+  }
+
+  /**
+   * Creates a new context using the given view with this context
+   * as the parent.
+   */
+  Context.prototype.push = function push (view) {
+    return new Context(view, this);
+  };
+
+  /**
+   * Returns the value of the given name in this context, traversing
+   * up the context hierarchy if the value is absent in this context's view.
+   */
+  Context.prototype.lookup = function lookup (name) {
+    var cache = this.cache;
+
+    var value;
+    if (cache.hasOwnProperty(name)) {
+      value = cache[name];
     } else {
-        stopStartSymbol = new Konva.RegularPolygon({
-            x: centerX,
-            y: centerY,
-            sides: 3,
-            radius: 20,
-            fill: '#fff',
-            rotation: 90
-        });
-    }
+      var context = this, names, index, lookupHit = false;
 
-    stopStartLayer.add(stopStartSymbol);
+      while (context) {
+        if (name.indexOf('.') > 0) {
+          value = context.view;
+          names = name.split('.');
+          index = 0;
 
-    stopStartLayer.on('click touchstart', function() {
-        togglePlay();
-    });
+          /**
+           * Using the dot notion path in `name`, we descend through the
+           * nested objects.
+           *
+           * To be certain that the lookup has been successful, we have to
+           * check if the last object in the path actually has the property
+           * we are looking for. We store the result in `lookupHit`.
+           *
+           * This is specially necessary for when the value has been set to
+           * `undefined` and we want to avoid looking up parent contexts.
+           **/
+          while (value != null && index < names.length) {
+            if (index === names.length - 1)
+              lookupHit = hasProperty(value, names[index]);
 
-    stopStartLayer.draw();
-
-    stage.add(stopStartLayer);
-}
-
-// Add one layer of drum sectors
-function drawDrumLayer(drumNumber) {
-    // Destroy old layer
-    if (layers[drumNumber]) {
-        layers[drumNumber].destroy();
-    }
-
-    // Create new layer
-    layers[drumNumber] = new Konva.Layer();
-    // Calculate angle in degrees for each sector
-    var beatAngle = 360 / drumTracks[drumNumber].divisions;
-
-    // Create drum sector arcs
-    for (var i = 0; i < drumTracks[drumNumber].divisions; i += 1) {
-
-        drumArcs[drumNumber][i] = new Konva.Arc({
-            x: stage.width() / 2,
-            y: stage.height() / 2,
-            innerRadius: innerRadius + (arcWidth * drumNumber),
-            outerRadius: (innerRadius + arcWidth) + (arcWidth * drumNumber),
-            fill: drumTracks[drumNumber].colours.inactive,
-            stroke: '#26294a',
-            strokeWidth: 2,
-            angle: beatAngle,
-            opacity: 0.8,
-            rotation: (270 + (beatAngle * i))%360,
-        });
-
-        if (drumTracks[drumNumber].pattern[i] === 1) {
-            drumArcs[drumNumber][i].fill(drumTracks[drumNumber].colours.active);
+            value = value[names[index++]];
+          }
+        } else {
+          value = context.view[name];
+          lookupHit = hasProperty(context.view, name);
         }
 
-        // Create event listener for click and touchstart events
-        drumArcs[drumNumber][i].on('click touchstart', function() {
-            // Find drum selected and array position
-            var drumSelected;
+        if (lookupHit)
+          break;
 
-            for (var j = 0; j < drumArcs.length; j += 1) {
-                if (drumArcs[j].indexOf(this) !== -1) {
-                    drumSelected = j;
-                    break;
-                }
-            }
+        context = context.parent;
+      }
 
-            var arrayPosition = drumArcs[drumSelected].indexOf(this);
-
-            // Switch value of item in drumPattern array
-            if (drumTracks[drumSelected].pattern[arrayPosition] === 0) {
-                this.fill(drumTracks[drumSelected].colours.active);
-                drumTracks[drumSelected].pattern[arrayPosition] = 1;
-            } else if (drumTracks[drumSelected].pattern[arrayPosition] === 1) {
-                this.fill(drumTracks[drumSelected].colours.inactive);
-                drumTracks[drumSelected].pattern[arrayPosition] = 0;
-            }
-
-            layers[drumNumber].draw();
-        });
-
-        layers[drumNumber].add(drumArcs[drumNumber][i]);
+      cache[name] = value;
     }
 
-    stage.add(layers[drumNumber]);
-}
+    if (isFunction(value))
+      value = value.call(this.view);
 
-function updateDrumNumber() {
-    var template = $('#template').html();
-    var $target = $('#individualDrumSettings');
+    return value;
+  };
 
-    numberOfDrums = $('#drumCount').val();
-    Mustache.parse(template);
-    $target.empty();
+  /**
+   * A Writer knows how to take a stream of tokens and render them to a
+   * string, given a context. It also maintains a cache of templates to
+   * avoid the need to parse the same template twice.
+   */
+  function Writer () {
+    this.cache = {};
+  }
 
-    for (var i = 0; i < numberOfDrums; i += 1) {
-        // Add options for this drum to page
-        $target.append(Mustache.render(template, Object.assign(drumTracks[i], { index: i })));
-        // Change value of select element to match that in samples array
-        $('#drum' + i + 'Sample').val(drumTracks[i].sample);
+  /**
+   * Clears all cached templates in this writer.
+   */
+  Writer.prototype.clearCache = function clearCache () {
+    this.cache = {};
+  };
+
+  /**
+   * Parses and caches the given `template` and returns the array of tokens
+   * that is generated from the parse.
+   */
+  Writer.prototype.parse = function parse (template, tags) {
+    var cache = this.cache;
+    var tokens = cache[template];
+
+    if (tokens == null)
+      tokens = cache[template] = parseTemplate(template, tags);
+
+    return tokens;
+  };
+
+  /**
+   * High-level method that is used to render the given `template` with
+   * the given `view`.
+   *
+   * The optional `partials` argument may be an object that contains the
+   * names and templates of partials that are used in the template. It may
+   * also be a function that is used to load partial templates on the fly
+   * that takes a single argument: the name of the partial.
+   */
+  Writer.prototype.render = function render (template, view, partials) {
+    var tokens = this.parse(template);
+    var context = (view instanceof Context) ? view : new Context(view);
+    return this.renderTokens(tokens, context, partials, template);
+  };
+
+  /**
+   * Low-level method that renders the given array of `tokens` using
+   * the given `context` and `partials`.
+   *
+   * Note: The `originalTemplate` is only ever used to extract the portion
+   * of the original template that was contained in a higher-order section.
+   * If the template doesn't use higher-order sections, this argument may
+   * be omitted.
+   */
+  Writer.prototype.renderTokens = function renderTokens (tokens, context, partials, originalTemplate) {
+    var buffer = '';
+
+    var token, symbol, value;
+    for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+      value = undefined;
+      token = tokens[i];
+      symbol = token[0];
+
+      if (symbol === '#') value = this.renderSection(token, context, partials, originalTemplate);
+      else if (symbol === '^') value = this.renderInverted(token, context, partials, originalTemplate);
+      else if (symbol === '>') value = this.renderPartial(token, context, partials, originalTemplate);
+      else if (symbol === '&') value = this.unescapedValue(token, context);
+      else if (symbol === 'name') value = this.escapedValue(token, context);
+      else if (symbol === 'text') value = this.rawValue(token);
+
+      if (value !== undefined)
+        buffer += value;
     }
 
-    for (var j = 0; j < 8; j += 1) {
-        if (j < numberOfDrums) {
-            layers[j].show();
-        }
-        else {
-            layers[j].hide();
-        }
+    return buffer;
+  };
+
+  Writer.prototype.renderSection = function renderSection (token, context, partials, originalTemplate) {
+    var self = this;
+    var buffer = '';
+    var value = context.lookup(token[1]);
+
+    // This function is used to render an arbitrary template
+    // in the current context by higher-order sections.
+    function subRender (template) {
+      return self.render(template, context, partials);
     }
 
-    // Create event listeners for each sector count input
-    $('.js-drum-sector-count').change(function() {
-        var index = $('.js-drum-sector-count').index(this);
-        drumTracks[index].divisions = parseInt($(this).val());
-        drawDrumLayer(index);
-    });
+    if (!value) return;
 
-    $('.js-drum-sample').change(function() {
-        var index = $('.js-drum-sample').index(this);
-        loadSoundFile(this.value, index);
-    });
+    if (isArray(value)) {
+      for (var j = 0, valueLength = value.length; j < valueLength; ++j) {
+        buffer += this.renderTokens(token[4], context.push(value[j]), partials, originalTemplate);
+      }
+    } else if (typeof value === 'object' || typeof value === 'string' || typeof value === 'number') {
+      buffer += this.renderTokens(token[4], context.push(value), partials, originalTemplate);
+    } else if (isFunction(value)) {
+      if (typeof originalTemplate !== 'string')
+        throw new Error('Cannot use higher-order sections without the original template');
 
-    // Update clockHand radius
-    clockHand.outerRadius(innerRadius + (arcWidth * numberOfDrums));
-    clockHandLayer.draw();
-}
+      // Extract the portion of the original template that the section contains.
+      value = value.call(context.view, originalTemplate.slice(token[3], token[5]), subRender);
 
-function updateStatus(message) {
-    $statusArea.removeClass('hidden');
-    $statusArea.html(message);
-    setTimeout(function(){
-        $statusArea.addClass('hidden');
-    }, 5000);
-}
-
-function init() {
-    for (var i = 0; i < drumTracks.length; i++ ) {
-        loadSoundFile(drumTracks[i].sample, i);
+      if (value != null)
+        buffer += value;
+    } else {
+      buffer += this.renderTokens(token[4], context, partials, originalTemplate);
     }
-}
+    return buffer;
+  };
 
-function loadSoundFile(url, drumNumber) {
-    var request = new XMLHttpRequest();
-    request.open('GET', samplesPath + url, true);
-    request.responseType = 'arraybuffer';
-    request.onload = function(e) {
-        initSound(this.response, drumNumber); // this.response is an ArrayBuffer.
-    };
-    request.send();
-}
+  Writer.prototype.renderInverted = function renderInverted (token, context, partials, originalTemplate) {
+    var value = context.lookup(token[1]);
 
-function initSound(arrayBuffer, drumNumber) {
-    context.decodeAudioData(arrayBuffer, function(buffer) {
-        drumBuffers[drumNumber] = buffer;
-        updateStatus('Sample loaded: ' + drumTracks[drumNumber].sample);
-    }, function(e) {
-        console.log('Error decoding file', e);
-        updateStatus('Error decoding file: ' + drumTracks[drumNumber].sample);
-    });
-}
+    // Use JavaScript's definition of falsy. Include empty arrays.
+    // See https://github.com/janl/mustache.js/issues/186
+    if (!value || (isArray(value) && value.length === 0))
+      return this.renderTokens(token[4], context, partials, originalTemplate);
+  };
 
-function scheduleHit(bufferNumber, time) {
-    var source = context.createBufferSource();
-    source.buffer = drumBuffers[bufferNumber];
-    source.loop = false;
-    source.connect(context.destination);
-    source.start(time);
-}
+  Writer.prototype.renderPartial = function renderPartial (token, context, partials) {
+    if (!partials) return;
 
-function togglePlay() {
-    var now = context.currentTime;
-    if (playing === false) {
-        playing = true;
-        nextBarStartTime = now;
-        scheduler();
-        anim.start();
-        drawPlayToggle('stop');
-    }
-    else {
-        playing = false;
-        window.clearTimeout( timerID );
-        // Stop animation at end of bar (most probably a bad way of doing this)
-        setTimeout(function(){
-            anim.stop();
-            clockHand.rotation(247.5);
-            clockHandLayer.draw();
-            drawPlayToggle('start');
-        }, (nextBarStartTime - now) * 1000);
-    }
-}
+    var value = isFunction(partials) ? partials(token[1]) : partials[token[1]];
+    if (value != null)
+      return this.renderTokens(this.parse(value), context, partials, value);
+  };
 
-function scheduler() {
-    while (nextBarStartTime < context.currentTime + 0.1 ) {
-        scheduleNextBar();
-    }
-    // Check for next bar every 10th of a second
-    timerID = window.setTimeout( scheduler, 100 );
-}
+  Writer.prototype.unescapedValue = function unescapedValue (token, context) {
+    var value = context.lookup(token[1]);
+    if (value != null)
+      return value;
+  };
 
-function scheduleNextBar() {
-    // Calculate bar duration and rotational speed
-    barTime = 240 / tempo;
-    angularSpeed = 360 / barTime;
+  Writer.prototype.escapedValue = function escapedValue (token, context) {
+    var value = context.lookup(token[1]);
+    if (value != null)
+      return mustache.escape(value);
+  };
 
-    // For each drum
-    for (var i = 0; i < numberOfDrums; i += 1) {
-        // Check whether there is a drum to play in each sector
-        for (var j = 0; j < drumTracks[i].divisions; j += 1) {
-            if (drumTracks[i].pattern[j] === 1) {
-                scheduleHit(i, nextBarStartTime + (j * (barTime / drumTracks[i].divisions)));
-            }
-        }
+  Writer.prototype.rawValue = function rawValue (token) {
+    return token[1];
+  };
+
+  mustache.name = 'mustache.js';
+  mustache.version = '2.3.0';
+  mustache.tags = [ '{{', '}}' ];
+
+  // All high-level mustache.* functions use this writer.
+  var defaultWriter = new Writer();
+
+  /**
+   * Clears all cached templates in the default writer.
+   */
+  mustache.clearCache = function clearCache () {
+    return defaultWriter.clearCache();
+  };
+
+  /**
+   * Parses and caches the given template in the default writer and returns the
+   * array of tokens it contains. Doing this ahead of time avoids the need to
+   * parse templates on the fly as they are rendered.
+   */
+  mustache.parse = function parse (template, tags) {
+    return defaultWriter.parse(template, tags);
+  };
+
+  /**
+   * Renders the `template` with the given `view` and `partials` using the
+   * default writer.
+   */
+  mustache.render = function render (template, view, partials) {
+    if (typeof template !== 'string') {
+      throw new TypeError('Invalid template! Template should be a "string" ' +
+                          'but "' + typeStr(template) + '" was given as the first ' +
+                          'argument for mustache#render(template, view, partials)');
     }
 
-    nextBarStartTime += barTime;
-}
+    return defaultWriter.render(template, view, partials);
+  };
 
-$(document).ready(function () {
-    resizeCanvas();
-    $('#drumCount').change(updateDrumNumber);
-});
+  // This is here for backwards compatibility with 0.4.x.,
+  /*eslint-disable */ // eslint wants camel cased function name
+  mustache.to_html = function to_html (template, view, partials, send) {
+    /*eslint-enable*/
 
-//event handler for window resize
-window.addEventListener('resize', resizeCanvas, false);
+    var result = mustache.render(template, view, partials);
 
-// Create event listeners
-$('#tempo').change(function() {
-    tempo = $(this).val();
-});
+    if (isFunction(send)) {
+      send(result);
+    } else {
+      return result;
+    }
+  };
 
-$('.js-options-toggle').click(function(event) {
-    event.preventDefault();
-    $('#controls').toggle();
-});
+  // Export the escaping function so that the user may override it.
+  // See https://github.com/janl/mustache.js/issues/244
+  mustache.escape = escapeHtml;
 
-init();
+  // Export these mainly for testing, but also for advanced usage.
+  mustache.Scanner = Scanner;
+  mustache.Context = Context;
+  mustache.Writer = Writer;
+
+  return mustache;
+}));
 
 
 /***/ }),
-/* 7 */,
-/* 8 */
+/* 2 */
 /***/ (function(module, exports) {
 
 module.exports = [
@@ -18128,6 +17712,425 @@ module.exports = [
 		"sample": "808 Cowbell.wav"
 	}
 ];
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports) {
+
+var g;
+
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
+
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || Function("return this")() || (1,eval)("this");
+} catch(e) {
+	// This works if the window reference is available
+	if(typeof window === "object")
+		g = window;
+}
+
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
+
+module.exports = g;
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports) {
+
+/* (ignored) */
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports) {
+
+/* (ignored) */
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+// Load libraries
+__webpack_require__(0)
+var Mustache = __webpack_require__(1)
+
+// Load default drum patter
+var drumTracks = __webpack_require__(2);
+
+// Initalise interface variables
+var canvas = null;
+var context = null;
+var stage = null;
+
+var centerX;
+var centerY;
+
+var layers = [];
+var clockHandLayer;
+var clockHand;
+var stopStartLayer;
+var stopStartSymbol;
+
+var numberOfDrums = 5;
+var arcWidth = 40;
+var innerRadius = 40;
+
+var anim;
+
+for (var drumArcs = []; drumArcs.length <= 8; drumArcs.push([]));
+
+// Intialise audio variables
+var context = new AudioContext();
+
+var samplesPath = 'samples/';
+
+var tempo = 120;
+var barTime = 240 / tempo;
+var angularSpeed = 360 / barTime;
+var drumBuffers = [];
+var playing = false;
+
+var nextBarStartTime;
+var timerID = null;
+
+// Get some elements
+var $container = $('.js-canvas-container');
+var $statusArea = $('.js-status');
+
+// Resize calculates dimensions then calls draw canvas
+function resizeCanvas() {
+    var canvasWidth = $container.width();
+    var canvasHeight = $container.height() - 10;
+    centerX = canvasWidth / 2;
+    centerY = canvasHeight / 2;
+    calculateArcWidth();
+    drawCanvas(canvasWidth, canvasHeight);
+    updateDrumNumber();
+}
+
+function calculateArcWidth() {
+    var padding = 10;
+    var min = Math.min(centerX, centerY);
+    arcWidth = (min - innerRadius - padding) / 8;
+}
+
+function drawCanvas(canvasWidth, canvasHeight) {
+
+    stage = new Konva.Stage({
+        container: 'container',
+        width: canvasWidth,
+        height: canvasHeight
+    });
+
+    drawClockHand();
+    drawPlayToggle('start');
+
+    anim = new Konva.Animation(function(frame) {
+        var angleDiff = frame.timeDiff * angularSpeed / 1000;
+        clockHand.rotate(angleDiff);
+    }, clockHandLayer);
+
+    // create all of the drum layers
+    for (var i = 0; i < 8; i += 1) {
+        drawDrumLayer(i);
+    }
+}
+
+// Add rotating clock hand
+function drawClockHand() {
+
+    clockHandLayer = new Konva.Layer();
+
+    clockHand = new Konva.Arc({
+        x: stage.width() / 2,
+        y: stage.height() / 2,
+        innerRadius: 42,
+        outerRadius: 65 + (arcWidth * numberOfDrums),
+        fillLinearGradientStartPoint: { x: 0, y: 0 },
+        fillLinearGradientEndPoint: { x: 0, y: 80 },
+        fillLinearGradientColorStops: [0, '#26294a', 1, 'white'],
+        angle: 22.5,
+        rotation: 247.5
+    });
+
+    clockHandLayer.add(clockHand);
+    stage.add(clockHandLayer);
+}
+
+// Add circular play/stop button
+function drawPlayToggle(action) {
+
+    // Destroy old layer
+    if (stopStartLayer) {
+        stopStartLayer.destroy();
+    }
+
+    stopStartLayer = new Konva.Layer();
+
+    var circle = new Konva.Circle({
+        x: centerX,
+        y: centerY,
+        radius: 40,
+        fill: '#110141',
+        stroke: '#fff',
+        strokeWidth: 1
+    });
+
+    stopStartLayer.add(circle);
+
+    if (action == 'stop') {
+        stopStartSymbol = new Konva.Rect({
+            x: centerX - 15,
+            y: centerY - 15,
+            width: 30,
+            height: 30,
+            fill: '#fff'
+        });
+    } else {
+        stopStartSymbol = new Konva.RegularPolygon({
+            x: centerX,
+            y: centerY,
+            sides: 3,
+            radius: 20,
+            fill: '#fff',
+            rotation: 90
+        });
+    }
+
+    stopStartLayer.add(stopStartSymbol);
+
+    stopStartLayer.on('click touchstart', function() {
+        togglePlay();
+    });
+
+    stopStartLayer.draw();
+
+    stage.add(stopStartLayer);
+}
+
+// Add one layer of drum sectors
+function drawDrumLayer(drumNumber) {
+    // Destroy old layer
+    if (layers[drumNumber]) {
+        layers[drumNumber].destroy();
+    }
+
+    // Create new layer
+    layers[drumNumber] = new Konva.Layer();
+    // Calculate angle in degrees for each sector
+    var beatAngle = 360 / drumTracks[drumNumber].divisions;
+
+    // Create drum sector arcs
+    for (var i = 0; i < drumTracks[drumNumber].divisions; i += 1) {
+
+        drumArcs[drumNumber][i] = new Konva.Arc({
+            x: stage.width() / 2,
+            y: stage.height() / 2,
+            innerRadius: innerRadius + (arcWidth * drumNumber),
+            outerRadius: (innerRadius + arcWidth) + (arcWidth * drumNumber),
+            fill: drumTracks[drumNumber].colours.inactive,
+            stroke: '#26294a',
+            strokeWidth: 2,
+            angle: beatAngle,
+            opacity: 0.8,
+            rotation: (270 + (beatAngle * i))%360,
+        });
+
+        if (drumTracks[drumNumber].pattern[i] === 1) {
+            drumArcs[drumNumber][i].fill(drumTracks[drumNumber].colours.active);
+        }
+
+        // Create event listener for click and touchstart events
+        drumArcs[drumNumber][i].on('click touchstart', function() {
+            // Find drum selected and array position
+            var drumSelected;
+
+            for (var j = 0; j < drumArcs.length; j += 1) {
+                if (drumArcs[j].indexOf(this) !== -1) {
+                    drumSelected = j;
+                    break;
+                }
+            }
+
+            var arrayPosition = drumArcs[drumSelected].indexOf(this);
+
+            // Switch value of item in drumPattern array
+            if (drumTracks[drumSelected].pattern[arrayPosition] === 0) {
+                this.fill(drumTracks[drumSelected].colours.active);
+                drumTracks[drumSelected].pattern[arrayPosition] = 1;
+            } else if (drumTracks[drumSelected].pattern[arrayPosition] === 1) {
+                this.fill(drumTracks[drumSelected].colours.inactive);
+                drumTracks[drumSelected].pattern[arrayPosition] = 0;
+            }
+
+            layers[drumNumber].draw();
+        });
+
+        layers[drumNumber].add(drumArcs[drumNumber][i]);
+    }
+
+    stage.add(layers[drumNumber]);
+}
+
+function updateDrumNumber() {
+    var template = $('#template').html();
+    var $target = $('#individualDrumSettings');
+
+    numberOfDrums = $('#drumCount').val();
+    Mustache.parse(template);
+    $target.empty();
+
+    for (var i = 0; i < numberOfDrums; i += 1) {
+        // Add options for this drum to page
+        $target.append(Mustache.render(template, Object.assign(drumTracks[i], { index: i })));
+        // Change value of select element to match that in samples array
+        $('#drum' + i + 'Sample').val(drumTracks[i].sample);
+    }
+
+    for (var j = 0; j < 8; j += 1) {
+        if (j < numberOfDrums) {
+            layers[j].show();
+        }
+        else {
+            layers[j].hide();
+        }
+    }
+
+    // Create event listeners for each sector count input
+    $('.js-drum-sector-count').change(function() {
+        var index = $('.js-drum-sector-count').index(this);
+        drumTracks[index].divisions = parseInt($(this).val());
+        drawDrumLayer(index);
+    });
+
+    $('.js-drum-sample').change(function() {
+        var index = $('.js-drum-sample').index(this);
+        loadSoundFile(this.value, index);
+    });
+
+    // Update clockHand radius
+    clockHand.outerRadius(innerRadius + (arcWidth * numberOfDrums));
+    clockHandLayer.draw();
+}
+
+function updateStatus(message) {
+    $statusArea.removeClass('hidden');
+    $statusArea.html(message);
+    setTimeout(function(){
+        $statusArea.addClass('hidden');
+    }, 5000);
+}
+
+function loadSamples() {
+    for (var i = 0; i < drumTracks.length; i++ ) {
+        loadSoundFile(drumTracks[i].sample, i);
+    }
+}
+
+function loadSoundFile(url, drumNumber) {
+    var request = new XMLHttpRequest();
+    request.open('GET', samplesPath + url, true);
+    request.responseType = 'arraybuffer';
+    request.onload = function(e) {
+        initSound(this.response, drumNumber); // this.response is an ArrayBuffer.
+    };
+    request.send();
+}
+
+function initSound(arrayBuffer, drumNumber) {
+    context.decodeAudioData(arrayBuffer, function(buffer) {
+        drumBuffers[drumNumber] = buffer;
+        updateStatus('Sample loaded: ' + drumTracks[drumNumber].sample);
+    }, function(e) {
+        console.log('Error decoding file', e);
+        updateStatus('Error decoding file: ' + drumTracks[drumNumber].sample);
+    });
+}
+
+function scheduleHit(bufferNumber, time) {
+    var source = context.createBufferSource();
+    source.buffer = drumBuffers[bufferNumber];
+    source.loop = false;
+    source.connect(context.destination);
+    source.start(time);
+}
+
+function togglePlay() {
+    var now = context.currentTime;
+    if (playing === false) {
+        playing = true;
+        nextBarStartTime = now;
+        scheduler();
+        anim.start();
+        drawPlayToggle('stop');
+    }
+    else {
+        playing = false;
+        window.clearTimeout( timerID );
+        // Stop animation at end of bar (most probably a bad way of doing this)
+        setTimeout(function(){
+            anim.stop();
+            clockHand.rotation(247.5);
+            clockHandLayer.draw();
+            drawPlayToggle('start');
+        }, (nextBarStartTime - now) * 1000);
+    }
+}
+
+function scheduler() {
+    while (nextBarStartTime < context.currentTime + 0.1 ) {
+        scheduleNextBar();
+    }
+    // Check for next bar every 10th of a second
+    timerID = window.setTimeout( scheduler, 100 );
+}
+
+function scheduleNextBar() {
+    // Calculate bar duration and rotational speed
+    barTime = 240 / tempo;
+    angularSpeed = 360 / barTime;
+
+    // For each drum
+    for (var i = 0; i < numberOfDrums; i += 1) {
+        // Check whether there is a drum to play in each sector
+        for (var j = 0; j < drumTracks[i].divisions; j += 1) {
+            if (drumTracks[i].pattern[j] === 1) {
+                scheduleHit(i, nextBarStartTime + (j * (barTime / drumTracks[i].divisions)));
+            }
+        }
+    }
+
+    nextBarStartTime += barTime;
+}
+
+$(document).ready(function () {
+    resizeCanvas();
+    $('#drumCount').change(updateDrumNumber);
+});
+
+//event handler for window resize
+window.addEventListener('resize', resizeCanvas, false);
+
+// Create event listeners
+$('#tempo').change(function() {
+    tempo = $(this).val();
+});
+
+$('.js-options-toggle').click(function(event) {
+    $('#controls').toggle();
+});
+
+loadSamples();
+
 
 /***/ })
 /******/ ]);
