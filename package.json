@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/inbn/drumcircle#readme",
   "devDependencies": {
-    "konva": "^1.4.0",
+    "konva": "^1.7.6",
     "mustache": "^2.3.0",
     "webpack": "^2.2.1"
   }
